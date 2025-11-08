@@ -10,7 +10,7 @@ const csp = [
   "img-src 'self' data:",
   "script-src 'self'",
   "style-src 'self'",
-  `connect-src 'self' ${apiOrigin}`
+  `connect-src 'self' ${apiOrigin}`,
 ].join("; ");
 export function middleware(_req: NextRequest) {
   const res = NextResponse.next();

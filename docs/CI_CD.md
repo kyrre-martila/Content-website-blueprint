@@ -3,6 +3,7 @@
 The project uses GitHub Actions to enforce consistent quality checks on every push and pull request. Three core workflows are required to pass before changes can merge into `main`:
 
 ## Workflows Overview
+
 - **Lint & Format (`.github/workflows/lint.yml`)**
   - Runs ESLint and Prettier checks across all JavaScript/TypeScript sources.
   - Validates Dart formatting for the mobile app.
@@ -17,13 +18,17 @@ The project uses GitHub Actions to enforce consistent quality checks on every pu
   - Executes on every `push` and `pull_request` event.
 
 ## Caching Strategy
+
 Each workflow uses the GitHub Actions cache to speed up dependency installation:
+
 - **pnpm dependencies**: Caches `~/.pnpm-store` and `node_modules` keyed by the hash of all `pnpm-lock.yaml` files.
 - **Flutter/Dart dependencies**: Caches `~/.pub-cache` keyed by the `pubspec.lock` hash.
 - Restoring caches significantly reduces CI execution time for incremental runs (targeting under three minutes).
 
 ## Build Artifacts
+
 The Build Verification workflow publishes a `dist-artifacts` archive containing:
+
 - `apps/api/dist`
 - `apps/web/.next`
 - `packages/domain/dist`
@@ -31,7 +36,9 @@ The Build Verification workflow publishes a `dist-artifacts` archive containing:
 Artifacts can be downloaded directly from the workflow run summary under the **Artifacts** section for validation or deployment.
 
 ## Branch Protection
+
 To enforce repository policy:
+
 1. Protect the `main` branch via **Settings → Branches → main → Protect**.
 2. Require pull requests with at least one approving review.
 3. Require status checks to pass before merging and select `Lint & Format`, `Build Verification`, and `Test All`.
@@ -40,7 +47,9 @@ To enforce repository policy:
 Detailed policy requirements are documented in `docs/REPO_RULES.md`.
 
 ## Running CI Checks Locally
+
 Developers can rehearse GitHub Actions locally using the [`act`](https://github.com/nektos/act) CLI:
+
 1. Install `act` (e.g., `brew install act` or download from the releases page).
 2. From the repository root, run commands such as:
    - `act pull_request -j lint`

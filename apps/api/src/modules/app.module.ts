@@ -17,7 +17,7 @@ import { MetricsModule } from "../common/metrics/metrics.module";
     UsersModule,
     AuthModule,
     HealthModule,
-    MailerModule
-  ]
+    MailerModule,
+  ],
 })
 export class AppModule {}

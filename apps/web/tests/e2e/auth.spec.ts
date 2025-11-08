@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test";
 
 const apiOrigin = process.env.PLAYWRIGHT_API_ORIGIN ?? "http://localhost:4000";
-const normalizedOrigin = apiOrigin.endsWith("/") ? apiOrigin.slice(0, -1) : apiOrigin;
+const normalizedOrigin = apiOrigin.endsWith("/")
+  ? apiOrigin.slice(0, -1)
+  : apiOrigin;
 const apiBase = `${normalizedOrigin}/api/v1`;
 
 test.describe("Authentication and CSRF protection", () => {
@@ -53,17 +55,21 @@ test.describe("Authentication and CSRF protection", () => {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ identifier: "user@example.com", password: "Password123" }),
+        body: JSON.stringify({
+          identifier: "user@example.com",
+          password: "Password123",
+        }),
       });
       return response.status;
     }, loginEndpoint);
     expect(forbiddenStatus).toBe(403);
 
     const success = await page.evaluate(async (endpoint) => {
-      const token = document.cookie
-        .split("; ")
-        .find((part) => part.startsWith("XSRF-TOKEN="))
-        ?.split("=")[1] ?? "";
+      const token =
+        document.cookie
+          .split("; ")
+          .find((part) => part.startsWith("XSRF-TOKEN="))
+          ?.split("=")[1] ?? "";
       const response = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
@@ -71,7 +77,10 @@ test.describe("Authentication and CSRF protection", () => {
           "content-type": "application/json",
           "x-csrf-token": token,
         },
-        body: JSON.stringify({ identifier: "user@example.com", password: "Password123" }),
+        body: JSON.stringify({
+          identifier: "user@example.com",
+          password: "Password123",
+        }),
       });
       const body = await response.json();
       return {

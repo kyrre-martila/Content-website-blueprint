@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { UsersService, type UsersRepository, type User, DomainError } from "@org/domain";
+import {
+  UsersService,
+  type UsersRepository,
+  type User,
+  DomainError,
+} from "@org/domain";
 
 class InMemoryUsersRepository implements UsersRepository {
   private users = new Map<string, User>();
@@ -15,7 +20,12 @@ class InMemoryUsersRepository implements UsersRepository {
     return null;
   }
 
-  async create(data: { email: string; name?: string; role?: "ADMIN" | "USER"; passwordHash?: string }): Promise<User> {
+  async create(data: {
+    email: string;
+    name?: string;
+    role?: "ADMIN" | "USER";
+    passwordHash?: string;
+  }): Promise<User> {
     const id = `user-${this.users.size + 1}`;
     const now = new Date();
     const user: User = {
@@ -30,7 +40,10 @@ class InMemoryUsersRepository implements UsersRepository {
     return user;
   }
 
-  async update(id: string, data: Partial<Omit<User, "id" | "createdAt" | "updatedAt">>): Promise<User> {
+  async update(
+    id: string,
+    data: Partial<Omit<User, "id" | "createdAt" | "updatedAt">>,
+  ): Promise<User> {
     const existing = this.users.get(id);
     if (!existing) throw new Error("User not found");
     const updated: User = {
@@ -53,26 +66,37 @@ describe("UsersService", () => {
   });
 
   it("returns a profile when the user exists", async () => {
-    const created = await repository.create({ email: "test@example.com", name: "Test User" });
+    const created = await repository.create({
+      email: "test@example.com",
+      name: "Test User",
+    });
     const profile = await service.getProfile(created.id);
     expect(profile).toEqual(created);
   });
 
   it("throws when profile is missing", async () => {
-    await expect(service.getProfile("missing"))
-      .rejects.toBeInstanceOf(DomainError);
+    await expect(service.getProfile("missing")).rejects.toBeInstanceOf(
+      DomainError,
+    );
   });
 
   it("rejects duplicate registration", async () => {
     await service.registerUser({ email: "dup@example.com", name: "Dup" });
-    await expect(service.registerUser({ email: "dup@example.com" })).rejects.toMatchObject({
+    await expect(
+      service.registerUser({ email: "dup@example.com" }),
+    ).rejects.toMatchObject({
       code: "DUPLICATE_RESOURCE",
     });
   });
 
   it("updates profile and normalizes email", async () => {
-    const created = await service.registerUser({ email: "user@example.com", name: "User" });
-    const updated = await service.updateProfile(created.id, { email: "NEW@Example.com" });
+    const created = await service.registerUser({
+      email: "user@example.com",
+      name: "User",
+    });
+    const updated = await service.updateProfile(created.id, {
+      email: "NEW@Example.com",
+    });
     expect(updated.email).toBe("new@example.com");
   });
 });

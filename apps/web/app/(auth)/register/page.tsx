@@ -39,8 +39,8 @@ export default function RegisterPage() {
           phone: form.phone.trim(),
           birthDate: form.birthDate || undefined,
           password: form.password,
-          acceptedTerms: form.acceptedTerms
-        })
+          acceptedTerms: form.acceptedTerms,
+        }),
       });
       if (res.ok) {
         setMsg("Konto opprettet!");
@@ -59,7 +59,10 @@ export default function RegisterPage() {
   return (
     <div style={{ maxWidth: 500, margin: "40px auto", lineHeight: 1.5 }}>
       <h1>Opprett konto</h1>
-      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <form
+        onSubmit={submit}
+        style={{ display: "flex", flexDirection: "column", gap: 8 }}
+      >
         <input
           name="firstName"
           placeholder="Fornavn"

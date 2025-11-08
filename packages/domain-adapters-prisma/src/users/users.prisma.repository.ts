@@ -7,7 +7,8 @@ type PrismaUser = NonNullable<
 >;
 
 function toDomain(user: PrismaUser): User {
-  const displayName = user.displayName ?? `${user.firstName} ${user.lastName}`.trim();
+  const displayName =
+    user.displayName ?? `${user.firstName} ${user.lastName}`.trim();
   return {
     id: user.id,
     email: user.email,
@@ -50,7 +51,12 @@ export class UsersPrismaRepository implements UsersRepository {
     return user ? toDomain(user) : null;
   }
 
-  async create(data: { email: string; name?: string; role?: "ADMIN" | "USER"; passwordHash?: string }): Promise<User> {
+  async create(data: {
+    email: string;
+    name?: string;
+    role?: "ADMIN" | "USER";
+    passwordHash?: string;
+  }): Promise<User> {
     const { firstName, lastName } = splitName(data.name);
     const user = await this.prisma.user.create({
       data: {
@@ -91,15 +97,23 @@ export class UsersPrismaRepository implements UsersRepository {
       if ("birthDate" in data.profile) {
         updateData.birthDate = data.profile.birthDate ?? null;
       }
-      if ("displayName" in data.profile && data.profile.displayName !== undefined) {
+      if (
+        "displayName" in data.profile &&
+        data.profile.displayName !== undefined
+      ) {
         updateData.displayName = data.profile.displayName;
       }
     }
     if (Object.keys(updateData).length === 0) {
-      const existing = await this.prisma.user.findUniqueOrThrow({ where: { id } });
+      const existing = await this.prisma.user.findUniqueOrThrow({
+        where: { id },
+      });
       return toDomain(existing);
     }
-    const user = await this.prisma.user.update({ where: { id }, data: updateData });
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: updateData,
+    });
     return toDomain(user);
   }
 }

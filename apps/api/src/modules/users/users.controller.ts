@@ -1,5 +1,11 @@
 import { Controller, Get, Req, UnauthorizedException } from "@nestjs/common";
-import { ApiBearerAuth, ApiCookieAuth, ApiOkResponse, ApiProperty, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiCookieAuth,
+  ApiOkResponse,
+  ApiProperty,
+  ApiTags,
+} from "@nestjs/swagger";
 import type { Request } from "express";
 import { TokensService, UsersService as UsersDomainService } from "@org/domain";
 
@@ -51,7 +57,8 @@ export class UsersController {
   @ApiOkResponse({ type: MeResponseDto })
   async me(@Req() req: Request): Promise<MeResponseDto> {
     const access =
-      (req.cookies?.access as string) || (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
+      (req.cookies?.access as string) ||
+      (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
     if (!access) throw new UnauthorizedException("Missing token");
 
     const payload = await this.tokens.verify(access);
@@ -64,12 +71,15 @@ export class UsersController {
       firstName: user.profile?.firstName ?? null,
       lastName: user.profile?.lastName ?? null,
       birthDate: user.profile?.birthDate
-        ? (user.profile.birthDate instanceof Date
-            ? user.profile.birthDate.toISOString().slice(0, 10)
-            : user.profile.birthDate)
+        ? user.profile.birthDate instanceof Date
+          ? user.profile.birthDate.toISOString().slice(0, 10)
+          : user.profile.birthDate
         : null,
       displayName: user.profile?.displayName ?? user.name ?? null,
-      createdAt: user.createdAt instanceof Date ? user.createdAt.toISOString() : user.createdAt,
+      createdAt:
+        user.createdAt instanceof Date
+          ? user.createdAt.toISOString()
+          : user.createdAt,
       role: user.role,
     };
 

@@ -1,4 +1,9 @@
-import { DomainError, type User, UsersService, type UsersRepository } from "@org/domain";
+import {
+  DomainError,
+  type User,
+  UsersService,
+  type UsersRepository,
+} from "@org/domain";
 
 class InMemoryUsersRepository implements UsersRepository {
   private users = new Map<string, User>();
@@ -20,7 +25,12 @@ class InMemoryUsersRepository implements UsersRepository {
     return null;
   }
 
-  async create(data: { email: string; name?: string; role?: "ADMIN" | "USER"; passwordHash?: string }): Promise<User> {
+  async create(data: {
+    email: string;
+    name?: string;
+    role?: "ADMIN" | "USER";
+    passwordHash?: string;
+  }): Promise<User> {
     const id = `user-${this.users.size + 1}`;
     const now = new Date();
     const user: User = {
@@ -71,23 +81,32 @@ describe("UsersService", () => {
   it("throws a DomainError when profile is missing", async () => {
     const service = new UsersService(new InMemoryUsersRepository());
 
-    await expect(service.getProfile("missing")).rejects.toBeInstanceOf(DomainError);
+    await expect(service.getProfile("missing")).rejects.toBeInstanceOf(
+      DomainError,
+    );
   });
 
   it("prevents duplicate registrations", async () => {
     const service = new UsersService(new InMemoryUsersRepository());
     await service.registerUser({ email: "dup@example.com", name: "Existing" });
 
-    await expect(service.registerUser({ email: "dup@example.com" })).rejects.toMatchObject({
+    await expect(
+      service.registerUser({ email: "dup@example.com" }),
+    ).rejects.toMatchObject({
       code: "DUPLICATE_RESOURCE",
     });
   });
 
   it("updates the profile and normalizes email", async () => {
     const service = new UsersService(new InMemoryUsersRepository());
-    const created = await service.registerUser({ email: "user@example.com", name: "Test" });
+    const created = await service.registerUser({
+      email: "user@example.com",
+      name: "Test",
+    });
 
-    const updated = await service.updateProfile(created.id, { email: "New@Example.com" });
+    const updated = await service.updateProfile(created.id, {
+      email: "New@Example.com",
+    });
 
     expect(updated.email).toBe("new@example.com");
   });

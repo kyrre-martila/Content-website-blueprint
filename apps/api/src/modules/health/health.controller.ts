@@ -4,6 +4,10 @@ import { Controller, Get } from "@nestjs/common";
 export class HealthController {
   @Get()
   ping() {
-    return { ok: true, service: "api", version: process.env.API_VERSION ?? "0.1.0" };
+    return {
+      ok: true,
+      service: "api",
+      version: process.env.API_VERSION ?? "0.1.0",
+    };
   }
 }

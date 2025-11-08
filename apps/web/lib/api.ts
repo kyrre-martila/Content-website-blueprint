@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const API_BASE_PATH = process.env.NEXT_PUBLIC_API_BASE_PATH ?? "/api/v1";
-const CSRF_COOKIE_NAME = process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME ?? "XSRF-TOKEN";
+const CSRF_COOKIE_NAME =
+  process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME ?? "XSRF-TOKEN";
 const STATEFUL_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function ensureAbsoluteUrl(path: string): string {
@@ -19,7 +20,7 @@ function ensureAbsoluteUrl(path: string): string {
 
 export function parseCookieValue(
   cookieHeader: string | null | undefined,
-  name: string
+  name: string,
 ): string | null {
   if (!cookieHeader) {
     return null;
@@ -53,7 +54,7 @@ export function resolveApiUrl(path: string): string {
 
 export async function apiFetch(
   path: string,
-  init: RequestInit = {}
+  init: RequestInit = {},
 ): Promise<Response> {
   const url = ensureAbsoluteUrl(path);
   const requestInit: RequestInit = { ...init };
@@ -75,7 +76,7 @@ export async function apiFetch(
 }
 
 export function getCsrfTokenFromCookieHeader(
-  cookieHeader: string | null | undefined
+  cookieHeader: string | null | undefined,
 ): string | null {
   return parseCookieValue(cookieHeader, CSRF_COOKIE_NAME);
 }
@@ -131,4 +132,3 @@ export function useCsrfToken(): CsrfHook {
 
   return { token, refresh };
 }
-

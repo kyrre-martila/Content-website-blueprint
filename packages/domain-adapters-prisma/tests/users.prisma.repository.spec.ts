@@ -1,6 +1,9 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { UsersPrismaRepository, getPrisma } from "@org/domain-adapters-prisma";
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import {
+  PostgreSqlContainer,
+  type StartedPostgreSqlContainer,
+} from "@testcontainers/postgresql";
 import { execSync } from "node:child_process";
 
 let container: StartedPostgreSqlContainer | undefined;
@@ -30,7 +33,10 @@ describeIfReady("UsersPrismaRepository (integration)", () => {
 
   it("creates and retrieves a user", async () => {
     const repo = new UsersPrismaRepository();
-    const created = await repo.create({ email: "repo@example.com", name: "Repo User" });
+    const created = await repo.create({
+      email: "repo@example.com",
+      name: "Repo User",
+    });
     expect(created.id).toBeDefined();
     const fetched = await repo.findById(created.id);
     expect(fetched?.email).toBe("repo@example.com");
@@ -39,6 +45,8 @@ describeIfReady("UsersPrismaRepository (integration)", () => {
 
   it("throws domain error when updating missing user", async () => {
     const repo = new UsersPrismaRepository();
-    await expect(repo.update("missing", { name: "Nobody" })).rejects.toThrowError();
+    await expect(
+      repo.update("missing", { name: "Nobody" }),
+    ).rejects.toThrowError();
   });
 });

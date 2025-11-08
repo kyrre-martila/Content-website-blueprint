@@ -20,16 +20,14 @@ const config: Config = {
     "^@org/domain/(.*)$": resolve(__dirname, "../../packages/domain/src/$1"),
     "^@org/domain-adapters-prisma$": resolve(
       __dirname,
-      "../../packages/domain-adapters-prisma/src/index.ts"
+      "../../packages/domain-adapters-prisma/src/index.ts",
     ),
     "^(\\.{1,2}/(common|users|auth|prisma)/.*)\\.js$": "$1.ts",
     "^(\\.{1,2}/prisma\\.client)\\.js$": "$1.ts",
     "^(\\.{1,2}/users/.*)\\.js$": "$1.ts",
   },
   moduleFileExtensions: ["ts", "tsx", "js", "json"],
-  collectCoverageFrom: [
-    "<rootDir>/src/modules/auth/auth.service.ts",
-  ],
+  collectCoverageFrom: ["<rootDir>/src/modules/auth/auth.service.ts"],
   coverageDirectory: "<rootDir>/coverage/unit",
   coverageReporters: ["text", "lcov"],
   coverageThreshold: {

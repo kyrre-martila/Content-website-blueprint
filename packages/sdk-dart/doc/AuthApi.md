@@ -1,26 +1,26 @@
 # blueprint_sdk.api.AuthApi
 
 ## Load the API package
+
 ```dart
 import 'package:blueprint_sdk/api.dart';
 ```
 
-All URIs are relative to *http://localhost*
+All URIs are relative to _http://localhost_
 
-Method | HTTP request | Description
-------------- | ------------- | -------------
-[**authControllerLogout**](AuthApi.md#authcontrollerlogout) | **POST** /auth/logout | 
-[**authControllerRefresh**](AuthApi.md#authcontrollerrefresh) | **POST** /auth/refresh | 
-[**authControllerRequestMagicLink**](AuthApi.md#authcontrollerrequestmagiclink) | **POST** /auth/request-magic-link | 
-[**authControllerVerifyMagicLink**](AuthApi.md#authcontrollerverifymagiclink) | **POST** /auth/verify-magic-link | 
-
+| Method                                                                          | HTTP request                      | Description |
+| ------------------------------------------------------------------------------- | --------------------------------- | ----------- |
+| [**authControllerLogout**](AuthApi.md#authcontrollerlogout)                     | **POST** /auth/logout             |
+| [**authControllerRefresh**](AuthApi.md#authcontrollerrefresh)                   | **POST** /auth/refresh            |
+| [**authControllerRequestMagicLink**](AuthApi.md#authcontrollerrequestmagiclink) | **POST** /auth/request-magic-link |
+| [**authControllerVerifyMagicLink**](AuthApi.md#authcontrollerverifymagiclink)   | **POST** /auth/verify-magic-link  |
 
 # **authControllerLogout**
+
 > authControllerLogout()
 
-
-
 ### Example
+
 ```dart
 import 'package:blueprint_sdk/api.dart';
 
@@ -34,6 +34,7 @@ try {
 ```
 
 ### Parameters
+
 This endpoint does not need any parameter.
 
 ### Return type
@@ -46,17 +47,17 @@ No authorization required
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
- - **Accept**: Not defined
+- **Content-Type**: Not defined
+- **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **authControllerRefresh**
+
 > authControllerRefresh()
 
-
-
 ### Example
+
 ```dart
 import 'package:blueprint_sdk/api.dart';
 // TODO Configure API key authorization: cookie
@@ -74,6 +75,7 @@ try {
 ```
 
 ### Parameters
+
 This endpoint does not need any parameter.
 
 ### Return type
@@ -86,17 +88,17 @@ void (empty response body)
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
- - **Accept**: Not defined
+- **Content-Type**: Not defined
+- **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **authControllerRequestMagicLink**
+
 > authControllerRequestMagicLink()
 
-
-
 ### Example
+
 ```dart
 import 'package:blueprint_sdk/api.dart';
 
@@ -110,6 +112,7 @@ try {
 ```
 
 ### Parameters
+
 This endpoint does not need any parameter.
 
 ### Return type
@@ -122,17 +125,17 @@ No authorization required
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
- - **Accept**: Not defined
+- **Content-Type**: Not defined
+- **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **authControllerVerifyMagicLink**
+
 > authControllerVerifyMagicLink()
 
-
-
 ### Example
+
 ```dart
 import 'package:blueprint_sdk/api.dart';
 
@@ -146,6 +149,7 @@ try {
 ```
 
 ### Parameters
+
 This endpoint does not need any parameter.
 
 ### Return type
@@ -158,8 +162,7 @@ No authorization required
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
- - **Accept**: Not defined
+- **Content-Type**: Not defined
+- **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-

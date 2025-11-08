@@ -2,22 +2,23 @@
 
 **Reviewer:** Codex AI  
 **Scope:** Fullstack blueprint (NestJS + Next.js + Flutter)  
-**Goal:** Evaluate 10/10 enterprise readiness  
+**Goal:** Evaluate 10/10 enterprise readiness
 
-| # | Kategori | Score | Kommentar |
-|---|-----------|--------|------------|
-| 1 | Arkitektur & struktur | 6 | Solid monorepo layout med delt turborepo, men flere moduler (bruker, kontrakter) er uferdige og mangler domenelag. |
-| 2 | Sikkerhet (auth, tokens, secrets, CSRF, CORS, headers, rate-limit) | 4 | Godt sikkerhetsgrunnlag (Helmet, rate limiting), men kritiske mangler som hardkodet JWT-secret og usikre cookie-handoffs. |
-| 3 | Datamodell & migrasjonsstrategi | 3 | Prisma-skjema uten migrasjoner, ingen historikk, svak strategi for dataeierskap og seeding. |
-| 4 | Kodekvalitet / konvensjoner | 5 | Lesbar kode, men mangler konsistente abstraheringer (stubbet UserService, ingen DTO-er). |
-| 5 | API-design / OpenAPI-kontrakter | 4 | Automatisert OpenAPI, men ingen versjonering, begrenset ressursdekning og DEV-lekkasjer i respons. |
-| 6 | Test (E2E + unit) | 3 | Én skriptet E2E som dekker auth; ingen enhetstester eller kontraktstester. |
-| 7 | Dev Experience / CI-pipeline | 6 | Workflow for SDK-generering og E2E finnes, men krever manuell trigging og mangler kvalitetssikring (lint/build) i CI. |
-| 8 | Dokumentasjon & onboarding | 4 | Kort README og sparsomme docs; mangler dypere operasjonelle guider og sikkerhetspolicyer. |
-| 9 | Skalerbarhet / deploy-klarhet | 4 | Docker-compose kun for lokale avhengigheter; ingen produksjonsklare deploy-manifester eller observability-plan. |
-| 10 | DX / modularitet (gjenbruk) | 5 | Noe gjenbruk (SDKs, kontrakt-sync), men mangler modulgrenser, felles autentiseringsbibliotek og delte typer. |
+| #   | Kategori                                                           | Score | Kommentar                                                                                                                 |
+| --- | ------------------------------------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Arkitektur & struktur                                              | 6     | Solid monorepo layout med delt turborepo, men flere moduler (bruker, kontrakter) er uferdige og mangler domenelag.        |
+| 2   | Sikkerhet (auth, tokens, secrets, CSRF, CORS, headers, rate-limit) | 4     | Godt sikkerhetsgrunnlag (Helmet, rate limiting), men kritiske mangler som hardkodet JWT-secret og usikre cookie-handoffs. |
+| 3   | Datamodell & migrasjonsstrategi                                    | 3     | Prisma-skjema uten migrasjoner, ingen historikk, svak strategi for dataeierskap og seeding.                               |
+| 4   | Kodekvalitet / konvensjoner                                        | 5     | Lesbar kode, men mangler konsistente abstraheringer (stubbet UserService, ingen DTO-er).                                  |
+| 5   | API-design / OpenAPI-kontrakter                                    | 4     | Automatisert OpenAPI, men ingen versjonering, begrenset ressursdekning og DEV-lekkasjer i respons.                        |
+| 6   | Test (E2E + unit)                                                  | 3     | Én skriptet E2E som dekker auth; ingen enhetstester eller kontraktstester.                                                |
+| 7   | Dev Experience / CI-pipeline                                       | 6     | Workflow for SDK-generering og E2E finnes, men krever manuell trigging og mangler kvalitetssikring (lint/build) i CI.     |
+| 8   | Dokumentasjon & onboarding                                         | 4     | Kort README og sparsomme docs; mangler dypere operasjonelle guider og sikkerhetspolicyer.                                 |
+| 9   | Skalerbarhet / deploy-klarhet                                      | 4     | Docker-compose kun for lokale avhengigheter; ingen produksjonsklare deploy-manifester eller observability-plan.           |
+| 10  | DX / modularitet (gjenbruk)                                        | 5     | Noe gjenbruk (SDKs, kontrakt-sync), men mangler modulgrenser, felles autentiseringsbibliotek og delte typer.              |
 
 ## 1. Arkitektur & struktur
+
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - Ingen dedikert domenelag eller repository-abstraksjon; API- og webklienter kaller Prisma direkte, noe som vanskeliggjør cross-service policyer og auditing.【F:apps/api/src/modules/auth/auth.service.ts†L13-L110】【F:apps/web/app/profile/page.tsx†L3-L19】
 - 🟠 **Alvorlige funn**
@@ -30,6 +31,7 @@
   - Etabler et felles domenelag (services + repositories) og delte kontrakter for å sikre konsistent logikk mellom plattformer.
 
 ## 2. Sikkerhet (auth, tokens, secrets, CSRF, CORS, headers, rate-limit)
+
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - JWT bruker hardkodet default-secret (`dev-secret-change-me`) hvis miljøvariabel mangler, som kan misbrukes i produksjon.【F:apps/api/src/modules/auth/jwt.util.ts†L3-L18】
   - Magic-link callback kopierer cookies uten `secure`-flagg og ignorerer øvrige attributter, noe som eksponerer tokens på webdomenet.【F:apps/web/app/auth/callback/route.ts†L22-L33】
@@ -45,6 +47,7 @@
   - Gjør secrets obligatoriske via konfigmodul, implementer tokens som HttpOnly Secure cookies gjennom en reverse proxy, og innfør mobil Secure Storage.
 
 ## 3. Datamodell & migrasjonsstrategi
+
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - Ingen versjonerte migrasjoner; CI bruker `prisma db push`, noe som ikke er audit-sikkert og kan slette data ved schema-endringer.【F:.github/workflows/test-all.yml†L33-L41】
 - 🟠 **Alvorlige funn**
@@ -57,6 +60,7 @@
   - Etabler Prisma-migrasjoner med code review, legg til historikk-tabeller og seed-skript for test-/demo-data.
 
 ## 4. Kodekvalitet / konvensjoner
+
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - Ingen.
 - 🟠 **Alvorlige funn**
@@ -69,6 +73,7 @@
   - Introduser en felles kodekonvensjon (ESLint, Nest CLI DTO-er) og logging/interceptor-lag for bedre observability.
 
 ## 5. API-design / OpenAPI-kontrakter
+
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - OpenAPI-generering er on-demand og skrevet til disk uten publiseringspipeline; manglende distribusjon kan føre til foreldede SDK-er.【F:apps/api/src/main.ts†L25-L38】【F:packages/contracts/scripts/sync-openapi.mjs†L1-L8】
 - 🟠 **Alvorlige funn**
@@ -82,6 +87,7 @@
   - Etabler CI for å publisere OpenAPI/SDK som artefakter, fjern dev-responser og innfør versjonert API (v1) med klare ressurskontrakter.
 
 ## 6. Test (E2E + unit)
+
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - Ingen automatiske tester utover en skriptet E2E; ingen guard mot regresjoner eller sikkerhetsbrudd.【F:scripts/e2e-auth.test.mjs†L1-L66】
 - 🟠 **Alvorlige funn**
@@ -94,6 +100,7 @@
   - Bygg ut Jest/Vitest-unit tester, Playwright for web, Flutter driver-tester, og trigge dem i CI på hver PR.
 
 ## 7. Dev Experience / CI-pipeline
+
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - Ingen.
 - 🟠 **Alvorlige funn**
@@ -106,6 +113,7 @@
   - Automatiser workflows på push/PR, legg inn lint/test/build-steg og publiser byggartefakter.
 
 ## 8. Dokumentasjon & onboarding
+
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - Ingen.
 - 🟠 **Alvorlige funn**
@@ -118,6 +126,7 @@
   - Utvid dokumentasjon med sekvensdiagrammer, sikkerhetspolicy, driftsrunbooks og onboarding-sjekklister.
 
 ## 9. Skalerbarhet / deploy-klarhet
+
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - Ingen.
 - 🟠 **Alvorlige funn**
@@ -130,6 +139,7 @@
   - Legg til prod-Dockerfiles, Helm/Compose for tjenester, metrics-endpoints og logging-standarder.
 
 ## 10. DX / modularitet (gjenbruk)
+
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - Ingen.
 - 🟠 **Alvorlige funn**
@@ -142,12 +152,15 @@
   - Bygg felles auth/util-pakker, distribuer SDK-er via npm/pub og etabler modulære konfigpakker.
 
 ### 🧩 Totalvurdering
-- **Samlet score:** 44 / 100  
-- **Enterprise readiness:** ❌  
+
+- **Samlet score:** 44 / 100
+- **Enterprise readiness:** ❌
 - **Oppsummering:** Blueprinten viser et godt startpunkt med struktur og grunnleggende sikkerhetsmekanismer, men mangler kritiske enterprise-krav som sikre secrets, migrasjonsstyring, helhetlig test-/CI-regime og fullverdige moduler.
 
 ### 🧾 10 / 10 Checklist
+
 Liste over hva som mangler for å nå 10 / 10:
+
 - [ ] Obligatoriske secrets, sikker cookie-håndtering og mobil secure storage på tvers av klienter.
 - [ ] Versjonerte Prisma-migrasjoner, dataseed og rollback-strategi.
 - [ ] Full CI/CD med automatiske lint/build/test og artefaktpublisering.

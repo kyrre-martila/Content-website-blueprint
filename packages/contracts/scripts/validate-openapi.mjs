@@ -16,20 +16,26 @@ try {
 }
 
 if (typeof spec.openapi !== "string" || !spec.openapi.startsWith("3.0.")) {
-  throw new Error(`contracts: expected OpenAPI 3.0.x document, received ${spec.openapi ?? "unknown"}`);
+  throw new Error(
+    `contracts: expected OpenAPI 3.0.x document, received ${spec.openapi ?? "unknown"}`,
+  );
 }
 
 const paths = spec.paths ?? {};
 for (const key of Object.keys(paths)) {
   if (!key.startsWith("/api/v1")) {
-    throw new Error(`contracts: invalid path '${key}' – all endpoints must be under /api/v1`);
+    throw new Error(
+      `contracts: invalid path '${key}' – all endpoints must be under /api/v1`,
+    );
   }
 }
 
 const bannedPatterns = [/devtoken/i, /debug/i];
 for (const pattern of bannedPatterns) {
   if (pattern.test(raw)) {
-    throw new Error(`contracts: detected disallowed field matching ${pattern} in OpenAPI document`);
+    throw new Error(
+      `contracts: detected disallowed field matching ${pattern} in OpenAPI document`,
+    );
   }
 }
 

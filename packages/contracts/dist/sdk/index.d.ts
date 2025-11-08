@@ -10,7 +10,9 @@ export interface SdkClientOptions extends InternalOptions {}
 
 export type BlueprintSdkClient = Client<paths>;
 
-export declare function createSdkClient(options?: SdkClientOptions): BlueprintSdkClient;
+export declare function createSdkClient(
+  options?: SdkClientOptions,
+): BlueprintSdkClient;
 
 export default createSdkClient;
 

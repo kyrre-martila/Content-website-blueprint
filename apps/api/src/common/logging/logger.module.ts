@@ -12,7 +12,7 @@ const REDACT_FIELDS = [
   "res.headers.set-cookie",
   "password",
   "token",
-  "refreshToken"
+  "refreshToken",
 ];
 
 const MAX_BODY_LENGTH = 1024;
@@ -50,17 +50,17 @@ function createLoggerOptions(): LoggerOptions {
           headers: req.headers,
           remoteAddress: req.remoteAddress,
           remotePort: req.remotePort,
-          body: sanitizeBody((req as { body?: unknown }).body)
+          body: sanitizeBody((req as { body?: unknown }).body),
         };
       },
       res(res) {
         return {
           statusCode: res.statusCode,
           headers: res.getHeaders ? res.getHeaders() : undefined,
-          body: sanitizeBody((res as unknown as { body?: unknown }).body)
+          body: sanitizeBody((res as unknown as { body?: unknown }).body),
         };
-      }
-    }
+      },
+    },
   };
 
   if (isDevelopment) {
@@ -71,9 +71,9 @@ function createLoggerOptions(): LoggerOptions {
         options: {
           colorize: true,
           translateTime: "SYS:standard",
-          singleLine: false
-        }
-      }
+          singleLine: false,
+        },
+      },
     } satisfies LoggerOptions;
   }
 
@@ -93,7 +93,8 @@ function createHttpLoggerOptions(logger: Logger): PinoHttpOptions {
       return "info";
     },
     autoLogging: {
-      ignore: (req) => typeof req.url === "string" && req.url.startsWith("/metrics")
+      ignore: (req) =>
+        typeof req.url === "string" && req.url.startsWith("/metrics"),
     },
     genReqId(req, res) {
       const existing = req.headers["x-request-id"];
@@ -110,9 +111,9 @@ function createHttpLoggerOptions(logger: Logger): PinoHttpOptions {
         requestId: (req as { id?: string }).id,
         userId: (req as { user?: { id?: string } }).user?.id,
         route: (req as { route?: { path?: string } }).route?.path,
-        statusCode: res.statusCode
+        statusCode: res.statusCode,
       };
-    }
+    },
   } satisfies PinoHttpOptions;
 }
 
@@ -121,14 +122,14 @@ function createHttpLoggerOptions(logger: Logger): PinoHttpOptions {
   providers: [
     {
       provide: LOGGER_TOKEN,
-      useFactory: () => pino(createLoggerOptions())
+      useFactory: () => pino(createLoggerOptions()),
     },
     {
       provide: HTTP_LOGGER_TOKEN,
       inject: [LOGGER_TOKEN],
-      useFactory: (logger: Logger) => pinoHttp(createHttpLoggerOptions(logger))
-    }
+      useFactory: (logger: Logger) => pinoHttp(createHttpLoggerOptions(logger)),
+    },
   ],
-  exports: [LOGGER_TOKEN, HTTP_LOGGER_TOKEN]
+  exports: [LOGGER_TOKEN, HTTP_LOGGER_TOKEN],
 })
 export class LoggerModule {}

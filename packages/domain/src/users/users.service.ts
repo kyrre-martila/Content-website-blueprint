@@ -31,13 +31,20 @@ export class UsersService {
     const email = input.email.trim().toLowerCase();
     const existing = await this.repository.findByEmail(email);
     if (existing) {
-      throw new DomainError("DUPLICATE_RESOURCE", "User with email already exists", { email });
+      throw new DomainError(
+        "DUPLICATE_RESOURCE",
+        "User with email already exists",
+        { email },
+      );
     }
     const role = input.role ?? "USER";
     return this.repository.create({ ...input, email, role });
   }
 
-  async updateProfile(userId: string, input: UpdateUserProfileInput): Promise<User> {
+  async updateProfile(
+    userId: string,
+    input: UpdateUserProfileInput,
+  ): Promise<User> {
     const current = await this.repository.findById(userId);
     if (!current) {
       throw new DomainError("USER_NOT_FOUND", "User not found", { userId });
@@ -47,7 +54,9 @@ export class UsersService {
       const normalizedEmail = input.email.trim().toLowerCase();
       const existing = await this.repository.findByEmail(normalizedEmail);
       if (existing && existing.id !== userId) {
-        throw new DomainError("DUPLICATE_RESOURCE", "Email already in use", { email: normalizedEmail });
+        throw new DomainError("DUPLICATE_RESOURCE", "Email already in use", {
+          email: normalizedEmail,
+        });
       }
       input = { ...input, email: normalizedEmail };
     }

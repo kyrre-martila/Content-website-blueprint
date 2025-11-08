@@ -1,20 +1,37 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import type { Request } from "express";
 import * as ipaddr from "ipaddr.js";
 import { Buffer } from "node:buffer";
 
 function parseAllowlist(): string[] {
-  return process.env.METRICS_ALLOWLIST?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
+  return (
+    process.env.METRICS_ALLOWLIST?.split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean) ?? []
+  );
 }
 
-function normalizeAddress(address: ipaddr.IPv4 | ipaddr.IPv6): ipaddr.IPv4 | ipaddr.IPv6 {
-  if (address.kind() === "ipv6" && (address as ipaddr.IPv6).isIPv4MappedAddress()) {
+function normalizeAddress(
+  address: ipaddr.IPv4 | ipaddr.IPv6,
+): ipaddr.IPv4 | ipaddr.IPv6 {
+  if (
+    address.kind() === "ipv6" &&
+    (address as ipaddr.IPv6).isIPv4MappedAddress()
+  ) {
     return (address as ipaddr.IPv6).toIPv4Address();
   }
   return address;
 }
 
-function parseClientIp(rawIp: string | undefined): ipaddr.IPv4 | ipaddr.IPv6 | null {
+function parseClientIp(
+  rawIp: string | undefined,
+): ipaddr.IPv4 | ipaddr.IPv6 | null {
   if (!rawIp) {
     return null;
   }
@@ -26,7 +43,10 @@ function parseClientIp(rawIp: string | undefined): ipaddr.IPv4 | ipaddr.IPv6 | n
   }
 }
 
-function matchAllowlist(allowlist: string[], clientIp: ipaddr.IPv4 | ipaddr.IPv6 | null): boolean {
+function matchAllowlist(
+  allowlist: string[],
+  clientIp: ipaddr.IPv4 | ipaddr.IPv6 | null,
+): boolean {
   if (!clientIp) {
     return false;
   }
@@ -35,7 +55,11 @@ function matchAllowlist(allowlist: string[], clientIp: ipaddr.IPv4 | ipaddr.IPv6
     const [range, maybePrefix] = entry.split("/");
     try {
       const parsedRange = normalizeAddress(ipaddr.parse(range));
-      const prefixLength = maybePrefix ? Number.parseInt(maybePrefix, 10) : parsedRange.kind() === "ipv4" ? 32 : 128;
+      const prefixLength = maybePrefix
+        ? Number.parseInt(maybePrefix, 10)
+        : parsedRange.kind() === "ipv4"
+          ? 32
+          : 128;
       if (Number.isNaN(prefixLength)) {
         return false;
       }
@@ -49,13 +73,17 @@ function matchAllowlist(allowlist: string[], clientIp: ipaddr.IPv4 | ipaddr.IPv6
   });
 }
 
-function decodeBasicAuth(authorizationHeader: string | undefined): { username: string; password: string } | null {
+function decodeBasicAuth(
+  authorizationHeader: string | undefined,
+): { username: string; password: string } | null {
   if (!authorizationHeader?.startsWith("Basic ")) {
     return null;
   }
   const token = authorizationHeader.slice(6).trim();
   try {
-    const [username, password] = Buffer.from(token, "base64").toString("utf8").split(":");
+    const [username, password] = Buffer.from(token, "base64")
+      .toString("utf8")
+      .split(":");
     if (username && password !== undefined) {
       return { username, password };
     }
@@ -68,7 +96,9 @@ function decodeBasicAuth(authorizationHeader: string | undefined): { username: s
 @Injectable()
 export class MetricsGuard implements CanActivate {
   private readonly allowlist = parseAllowlist();
-  private readonly hasBasicAuthConfig = Boolean(process.env.METRICS_USER && process.env.METRICS_PASS);
+  private readonly hasBasicAuthConfig = Boolean(
+    process.env.METRICS_USER && process.env.METRICS_PASS,
+  );
 
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<Request>();
@@ -77,7 +107,12 @@ export class MetricsGuard implements CanActivate {
       return true;
     }
 
-    const clientIp = parseClientIp(req.ip || req.connection.remoteAddress || req.socket.remoteAddress || undefined);
+    const clientIp = parseClientIp(
+      req.ip ||
+        req.connection.remoteAddress ||
+        req.socket.remoteAddress ||
+        undefined,
+    );
     const isIpAllowed = matchAllowlist(this.allowlist, clientIp);
 
     if (isIpAllowed) {
@@ -87,7 +122,10 @@ export class MetricsGuard implements CanActivate {
     const credentials = decodeBasicAuth(req.headers.authorization);
 
     if (credentials) {
-      if (credentials.username === process.env.METRICS_USER && credentials.password === process.env.METRICS_PASS) {
+      if (
+        credentials.username === process.env.METRICS_USER &&
+        credentials.password === process.env.METRICS_PASS
+      ) {
         return true;
       }
       throw new UnauthorizedException("Invalid metrics credentials");

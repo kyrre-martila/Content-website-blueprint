@@ -2,7 +2,10 @@ import { Injectable, NestMiddleware } from "@nestjs/common";
 import type { Request, Response, NextFunction } from "express";
 import { InjectMetric } from "@willsoto/nestjs-prometheus";
 import type { Counter, Histogram } from "prom-client";
-import { HTTP_REQUEST_COUNTER, HTTP_REQUEST_DURATION } from "./metrics.constants";
+import {
+  HTTP_REQUEST_COUNTER,
+  HTTP_REQUEST_DURATION,
+} from "./metrics.constants";
 
 function resolveRoute(req: Request): string {
   const route = (req as Request & { route?: { path?: string } }).route?.path;
@@ -18,8 +21,10 @@ function resolveRoute(req: Request): string {
 @Injectable()
 export class MetricsMiddleware implements NestMiddleware {
   constructor(
-    @InjectMetric(HTTP_REQUEST_COUNTER) private readonly httpRequestCounter: Counter<string>,
-    @InjectMetric(HTTP_REQUEST_DURATION) private readonly httpRequestDuration: Histogram<string>
+    @InjectMetric(HTTP_REQUEST_COUNTER)
+    private readonly httpRequestCounter: Counter<string>,
+    @InjectMetric(HTTP_REQUEST_DURATION)
+    private readonly httpRequestDuration: Histogram<string>,
   ) {}
 
   use(req: Request, res: Response, next: NextFunction): void {
@@ -39,7 +44,7 @@ export class MetricsMiddleware implements NestMiddleware {
       const labels = {
         method: req.method,
         route: resolveRoute(req),
-        status: String(res.statusCode)
+        status: String(res.statusCode),
       };
       this.httpRequestCounter.inc(labels);
       end(labels);

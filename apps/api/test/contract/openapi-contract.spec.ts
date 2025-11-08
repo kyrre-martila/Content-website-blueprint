@@ -3,7 +3,12 @@ import { resolve } from "node:path";
 
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { TokensService, UsersService as UsersDomainService, type User, type UsersRepository } from "@org/domain";
+import {
+  TokensService,
+  UsersService as UsersDomainService,
+  type User,
+  type UsersRepository,
+} from "@org/domain";
 import jestOpenAPI from "jest-openapi";
 import request from "supertest";
 
@@ -18,7 +23,10 @@ import { PrismaService } from "../../src/prisma/prisma.service";
 
 jest.mock("@prisma/client", () => ({ PrismaClient: class {} }));
 
-const specPath = resolve(__dirname, "../../../../packages/contracts/openapi.v1.json");
+const specPath = resolve(
+  __dirname,
+  "../../../../packages/contracts/openapi.v1.json",
+);
 const rawSpec = JSON.parse(readFileSync(specPath, "utf-8"));
 jestOpenAPI({ ...rawSpec, servers: [{ url: "/" }] });
 
@@ -50,11 +58,23 @@ const tokensServiceStub: Pick<TokensService, "verify"> = {
 };
 
 const authServiceStub: Partial<AuthService> = {
-  login: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
-  refresh: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
-  registerUser: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
+  login: async () => ({
+    accessToken: "access-token",
+    refreshToken: "refresh-token",
+  }),
+  refresh: async () => ({
+    accessToken: "access-token",
+    refreshToken: "refresh-token",
+  }),
+  registerUser: async () => ({
+    accessToken: "access-token",
+    refreshToken: "refresh-token",
+  }),
   requestMagicLink: async () => ({ token: "dev-token" }),
-  verifyMagicLink: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
+  verifyMagicLink: async () => ({
+    accessToken: "access-token",
+    refreshToken: "refresh-token",
+  }),
 };
 
 describe("OpenAPI contract", () => {
@@ -93,19 +113,27 @@ describe("OpenAPI contract", () => {
       .compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     app.useGlobalInterceptors(new DomainErrorInterceptor());
     app.setGlobalPrefix("api/v1", { exclude: [] });
     await app.init();
 
     const authController = app.get(AuthController);
-    (authController as unknown as { auth: AuthService }).auth = authServiceStub as AuthService;
+    (authController as unknown as { auth: AuthService }).auth =
+      authServiceStub as AuthService;
 
     const usersController = app.get(UsersController);
-    (usersController as unknown as { tokens: TokensService }).tokens = tokensServiceStub as TokensService;
-    (usersController as unknown as { usersService: UsersDomainService }).usersService = new UsersDomainService(
-      usersRepositoryStub,
-    );
+    (usersController as unknown as { tokens: TokensService }).tokens =
+      tokensServiceStub as TokensService;
+    (
+      usersController as unknown as { usersService: UsersDomainService }
+    ).usersService = new UsersDomainService(usersRepositoryStub);
   });
 
   afterAll(async () => {

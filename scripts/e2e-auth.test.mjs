@@ -1,70 +1,116 @@
 /* Minimal E2E: magic-link → verify → /me → refresh → logout */
 const origin = process.env.API_URL || "http://localhost:4000";
 const basePath = process.env.API_BASE_PATH || "/api/v1";
-const normalizedBasePath = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
+const normalizedBasePath = basePath.endsWith("/")
+  ? basePath.slice(0, -1)
+  : basePath;
 const base = `${origin}${normalizedBasePath}`;
 const email = "test@example.com";
 const uname = "user" + Math.random().toString(16).slice(2, 7);
 const pw = "S3curePassw0rd!";
 
-function must(cond, msg) { if (!cond) throw new Error(msg); }
+function must(cond, msg) {
+  if (!cond) throw new Error(msg);
+}
 
-async function json(url, opts={}) {
-  const r = await fetch(url, { headers: { "content-type": "application/json", ...(opts.headers||{}) }, ...opts });
-  const body = await r.json().catch(()=> ({}));
+async function json(url, opts = {}) {
+  const r = await fetch(url, {
+    headers: { "content-type": "application/json", ...(opts.headers || {}) },
+    ...opts,
+  });
+  const body = await r.json().catch(() => ({}));
   return { status: r.status, headers: r.headers, body };
 }
 
 (async () => {
   // request magic link
-  const req = await json(`${base}/auth/request-magic-link`, { method: "POST", body: JSON.stringify({ email }) });
+  const req = await json(`${base}/auth/request-magic-link`, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
   must(req.status === 201 || req.status === 200, "request-magic-link failed");
-  const token = req.body.devToken; must(token && token.length > 10, "no devToken returned");
+  const token = req.body.devToken;
+  must(token && token.length > 10, "no devToken returned");
 
   // verify magic link (capture cookies)
   const ver = await fetch(`${base}/auth/verify-magic-link`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, token }),
-    redirect: "manual"
+    redirect: "manual",
   });
   const setCookie = ver.headers.get("set-cookie") || "";
   const data = await ver.json();
   must(ver.status === 201 || ver.status === 200, "verify failed");
   must(data.accessToken && data.refreshToken, "missing tokens");
-  must(setCookie.includes("sid=") && setCookie.includes("access="), "missing auth cookies");
+  must(
+    setCookie.includes("sid=") && setCookie.includes("access="),
+    "missing auth cookies",
+  );
 
   // call /me with cookie
-  const me = await fetch(`${base}/me`, { headers: { cookie: setCookie.split(",").map(s=>s.split(";")[0]).join("; ") } });
+  const me = await fetch(`${base}/me`, {
+    headers: {
+      cookie: setCookie
+        .split(",")
+        .map((s) => s.split(";")[0])
+        .join("; "),
+    },
+  });
   const meBody = await me.json();
   must(me.status === 200 && meBody.user, "/me with cookie failed");
 
   // call refresh using cookie
-  const ref = await fetch(`${base}/auth/refresh`, { method: "POST", headers: { cookie: setCookie.split(",").map(s=>s.split(";")[0]).join("; ") } });
+  const ref = await fetch(`${base}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      cookie: setCookie
+        .split(",")
+        .map((s) => s.split(";")[0])
+        .join("; "),
+    },
+  });
   const refBody = await ref.json();
   must(ref.status === 201 || ref.status === 200, "refresh failed");
   must(refBody.accessToken && refBody.refreshToken, "refresh missing tokens");
 
   // logout
-  const lo = await fetch(`${base}/auth/logout`, { method: "POST", headers: { cookie: setCookie.split(",").map(s=>s.split(";")[0]).join("; ") } });
+  const lo = await fetch(`${base}/auth/logout`, {
+    method: "POST",
+    headers: {
+      cookie: setCookie
+        .split(",")
+        .map((s) => s.split(";")[0])
+        .join("; "),
+    },
+  });
   must(lo.status === 204, "logout failed");
 
   console.log("✅ E2E auth flow OK");
 
   // register
-  let r = await json(`${base}/auth/register`, { method: "POST", body: JSON.stringify({
-    firstName: "Test",
-    lastName: uname,
-    email: `${uname}@ex.com`,
-    password: pw,
-    acceptedTerms: true
-  }) });
+  let r = await json(`${base}/auth/register`, {
+    method: "POST",
+    body: JSON.stringify({
+      firstName: "Test",
+      lastName: uname,
+      email: `${uname}@ex.com`,
+      password: pw,
+      acceptedTerms: true,
+    }),
+  });
   must(r.status === 201 || r.status === 200, "register failed");
 
   // login
-  r = await json(`${base}/auth/login`, { method: "POST", body: JSON.stringify({ identifier: `${uname}@ex.com`, password: pw }) });
+  r = await json(`${base}/auth/login`, {
+    method: "POST",
+    body: JSON.stringify({ identifier: `${uname}@ex.com`, password: pw }),
+  });
   must(r.status === 201 || r.status === 200, "login failed");
   must(r.body.accessToken && r.body.refreshToken, "login tokens missing");
 
   console.log("✅ E2E password flow OK");
-})().catch(e => { console.error("❌ E2E failed:", e.message); process.exit(1); });
+})().catch((e) => {
+  console.error("❌ E2E failed:", e.message);
+  process.exit(1);
+});

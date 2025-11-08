@@ -69,10 +69,9 @@ const createPrismaMock = (): PrismaMock => ({
 
 const createAuthService = () => {
   const prisma = createPrismaMock();
-  const tokens: jest.Mocked<Pick<
-    TokensService,
-    "issueAccessToken" | "issueRefreshToken" | "verify"
-  >> = {
+  const tokens: jest.Mocked<
+    Pick<TokensService, "issueAccessToken" | "issueRefreshToken" | "verify">
+  > = {
     issueAccessToken: jest.fn(),
     issueRefreshToken: jest.fn(),
     verify: jest.fn(),
@@ -112,7 +111,7 @@ describe("AuthService", () => {
         email: "test@example.com",
         password: "Password123",
         acceptedTerms: true,
-      })
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(prisma.user.create).not.toHaveBeenCalled();
@@ -136,7 +135,10 @@ describe("AuthService", () => {
       acceptedTerms: true,
     });
 
-    expect(result).toEqual({ accessToken: "access-token", refreshToken: "refresh-token" });
+    expect(result).toEqual({
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
+    });
     expect(prisma.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -144,7 +146,7 @@ describe("AuthService", () => {
           passwordHash: "argon-hash",
           phone: "+4712345678",
         }),
-      })
+      }),
     );
     expect(prisma.session.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -153,13 +155,16 @@ describe("AuthService", () => {
           token: "session-jti",
           expiresAt: expect.any(Date),
         }),
-      })
+      }),
     );
   });
 
   it("validates credentials and returns issued tokens", async () => {
     const { service, prisma, tokens } = createAuthService();
-    prisma.user.findFirst.mockResolvedValueOnce({ id: "user-7", passwordHash: "stored-hash" });
+    prisma.user.findFirst.mockResolvedValueOnce({
+      id: "user-7",
+      passwordHash: "stored-hash",
+    });
     verifyMock.mockResolvedValueOnce(true);
     tokens.issueAccessToken.mockResolvedValueOnce("issued-access");
     tokens.issueRefreshToken.mockResolvedValueOnce("issued-refresh");
@@ -167,11 +172,17 @@ describe("AuthService", () => {
 
     const result = await service.login("user@example.com", "Secret123!");
 
-    expect(result).toEqual({ accessToken: "issued-access", refreshToken: "issued-refresh" });
+    expect(result).toEqual({
+      accessToken: "issued-access",
+      refreshToken: "issued-refresh",
+    });
     expect(prisma.session.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ token: "session-123", userId: "user-7" }),
-      })
+        data: expect.objectContaining({
+          token: "session-123",
+          userId: "user-7",
+        }),
+      }),
     );
   });
 
@@ -230,16 +241,23 @@ describe("AuthService", () => {
 
   it("rejects invalid credentials", async () => {
     const { service, prisma } = createAuthService();
-    prisma.user.findFirst.mockResolvedValueOnce({ id: "user-1", passwordHash: "hash" });
+    prisma.user.findFirst.mockResolvedValueOnce({
+      id: "user-1",
+      passwordHash: "hash",
+    });
     verifyMock.mockResolvedValueOnce(false);
 
-    await expect(service.login("user@example.com", "wrong"))
-      .rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(
+      service.login("user@example.com", "wrong"),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it("refreshes tokens for active sessions", async () => {
     const { service, prisma, tokens } = createAuthService();
-    tokens.verify.mockResolvedValueOnce({ subject: "user-9", tokenId: "jti-old" });
+    tokens.verify.mockResolvedValueOnce({
+      subject: "user-9",
+      tokenId: "jti-old",
+    });
     prisma.session.findUnique.mockResolvedValueOnce({
       token: "jti-old",
       userId: "user-9",
@@ -252,7 +270,10 @@ describe("AuthService", () => {
 
     const result = await service.refresh("refresh-token-value");
 
-    expect(result).toEqual({ accessToken: "access-new", refreshToken: "refresh-new" });
+    expect(result).toEqual({
+      accessToken: "access-new",
+      refreshToken: "refresh-new",
+    });
     expect(prisma.session.update).toHaveBeenCalledWith({
       where: { token: "jti-old" },
       data: { revokedAt: expect.any(Date) },
@@ -260,24 +281,33 @@ describe("AuthService", () => {
     expect(prisma.session.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ token: "jti-new", userId: "user-9" }),
-      })
+      }),
     );
   });
 
   it("throws when refresh token session is missing", async () => {
     const { service, prisma, tokens } = createAuthService();
-    tokens.verify.mockResolvedValueOnce({ subject: "user-1", tokenId: "missing" });
+    tokens.verify.mockResolvedValueOnce({
+      subject: "user-1",
+      tokenId: "missing",
+    });
     prisma.session.findUnique.mockResolvedValueOnce(null);
 
-    await expect(service.refresh("bad-token")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.refresh("bad-token")).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it("throws when refresh payload is malformed", async () => {
     const { service, tokens } = createAuthService();
-    tokens.verify.mockResolvedValueOnce({ subject: undefined, tokenId: undefined });
+    tokens.verify.mockResolvedValueOnce({
+      subject: undefined,
+      tokenId: undefined,
+    });
 
-    await expect(service.refresh("bad"))
-      .rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.refresh("bad")).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it("creates and emails magic links", async () => {
@@ -291,7 +321,10 @@ describe("AuthService", () => {
 
     expect(result.token).toBe(Buffer.from("magic", "utf-8").toString("hex"));
     expect(prisma.magicLink.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ email: "magic@example.com", token: "hashed-token" }),
+      data: expect.objectContaining({
+        email: "magic@example.com",
+        token: "hashed-token",
+      }),
     });
     expect(mailer.sendMagicLink).toHaveBeenCalledWith(
       "magic@example.com",
@@ -316,27 +349,40 @@ describe("AuthService", () => {
     tokens.issueRefreshToken.mockResolvedValueOnce("refresh-token");
     uuidMock.mockReturnValueOnce("ml-session");
 
-    const result = await service.verifyMagicLink("new@example.com", "token-value");
+    const result = await service.verifyMagicLink(
+      "new@example.com",
+      "token-value",
+    );
 
-    expect(result).toEqual({ userId: "user-new", accessToken: "access-token", refreshToken: "refresh-token" });
+    expect(result).toEqual({
+      userId: "user-new",
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
+    });
     expect(prisma.magicLink.update).toHaveBeenCalledWith({
       where: { id: "ml-1" },
       data: { usedAt: expect.any(Date) },
     });
-    expect(prisma.user.create).toHaveBeenCalledWith({ data: { email: "new@example.com" } });
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: { email: "new@example.com" },
+    });
   });
 
   it("rejects invalid magic links", async () => {
     const { service, prisma } = createAuthService();
     prisma.magicLink.findFirst.mockResolvedValueOnce(null);
 
-    await expect(service.verifyMagicLink("nope@example.com", "token"))
-      .rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(
+      service.verifyMagicLink("nope@example.com", "token"),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it("logs out and revokes sessions when refresh token present", async () => {
     const { service, prisma, tokens } = createAuthService();
-    tokens.verify.mockResolvedValueOnce({ subject: "user-1", tokenId: "jti-logout" });
+    tokens.verify.mockResolvedValueOnce({
+      subject: "user-1",
+      tokenId: "jti-logout",
+    });
 
     await service.logout("refresh-token-value");
 

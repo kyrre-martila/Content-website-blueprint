@@ -12,7 +12,8 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const email = url.searchParams.get("email");
   const token = url.searchParams.get("token");
-  if (!email || !token) return NextResponse.redirect(new URL("/login", url.origin));
+  if (!email || !token)
+    return NextResponse.redirect(new URL("/login", url.origin));
 
   const api = getApiBaseUrl();
   const headers = new Headers({ "content-type": "application/json" });
@@ -29,19 +30,24 @@ export async function GET(req: Request) {
     headers,
     body: JSON.stringify({ email, token }),
     redirect: "manual",
-    credentials: "include"
+    credentials: "include",
   });
 
   if (!r.ok) {
     return NextResponse.redirect(new URL("/login", url.origin));
   }
   const body = await r.json().catch(() => null);
-  if (!body || typeof body.accessToken !== "string" || typeof body.refreshToken !== "string") {
+  if (
+    !body ||
+    typeof body.accessToken !== "string" ||
+    typeof body.refreshToken !== "string"
+  ) {
     return NextResponse.redirect(new URL("/login", url.origin));
   }
 
   const res = NextResponse.redirect(new URL("/profile", url.origin));
-  const secureRequest = process.env.NODE_ENV === "production" ? true : isSecureRequest(req);
+  const secureRequest =
+    process.env.NODE_ENV === "production" ? true : isSecureRequest(req);
   const domain = process.env.COOKIE_DOMAIN || undefined;
   const baseOptions = { domain, path: "/" as const, secure: secureRequest };
   const accessMaxAge = Number(process.env.ACCESS_TOKEN_TTL_SEC ?? 900);
@@ -51,14 +57,14 @@ export async function GET(req: Request) {
     ...baseOptions,
     httpOnly: true,
     sameSite: "lax",
-    maxAge: accessMaxAge
+    maxAge: accessMaxAge,
   });
 
   res.cookies.set("sid", body.refreshToken, {
     ...baseOptions,
     httpOnly: true,
     sameSite: "strict",
-    maxAge: refreshMaxAge
+    maxAge: refreshMaxAge,
   });
 
   return res;

@@ -75,7 +75,9 @@ await writeFile(path.join(sdkDir, "index.js"), sdkIndexJs);
 await writeFile(path.join(sdkDir, "index.d.ts"), sdkIndexDts);
 
 if (bumped) {
-  console.log(`contracts: OpenAPI hash changed → version bumped to ${packageJson.version}`);
+  console.log(
+    `contracts: OpenAPI hash changed → version bumped to ${packageJson.version}`,
+  );
 } else {
   console.log("contracts: OpenAPI hash unchanged – version preserved");
 }

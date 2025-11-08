@@ -17,7 +17,9 @@ export class JwtUtil {
     this.issuer = this.config.get<string>("JWT_ISS") ?? "blueprint";
     this.audience = this.config.get<string>("JWT_AUD") ?? "blueprint-web";
     this.accessTtlSec = Number(this.config.get("ACCESS_TOKEN_TTL_SEC") ?? 900);
-    this.refreshTtlSec = Number(this.config.get("REFRESH_TOKEN_TTL_SEC") ?? 1209600);
+    this.refreshTtlSec = Number(
+      this.config.get("REFRESH_TOKEN_TTL_SEC") ?? 1209600,
+    );
   }
 
   signAccess(sub: string) {
@@ -26,7 +28,7 @@ export class JwtUtil {
       algorithm: "HS512",
       expiresIn: this.accessTtlSec,
       issuer: this.issuer,
-      audience: this.audience
+      audience: this.audience,
     });
   }
 
@@ -36,7 +38,7 @@ export class JwtUtil {
       algorithm: "HS512",
       expiresIn: this.refreshTtlSec,
       issuer: this.issuer,
-      audience: this.audience
+      audience: this.audience,
     });
   }
 
@@ -44,7 +46,7 @@ export class JwtUtil {
     return jwt.verify(token, this.secret, {
       algorithms: ["HS512"],
       issuer: this.issuer,
-      audience: this.audience
+      audience: this.audience,
     }) as JwtPayload;
   }
 }

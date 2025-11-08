@@ -13,7 +13,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@org/domain": resolve(dir, "../../packages/domain/src/index.ts"),
-      "@org/domain-adapters-prisma": resolve(dir, "../../packages/domain-adapters-prisma/src/index.ts"),
+      "@org/domain-adapters-prisma": resolve(
+        dir,
+        "../../packages/domain-adapters-prisma/src/index.ts",
+      ),
     },
   },
 });

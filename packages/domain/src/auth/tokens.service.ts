@@ -16,7 +16,10 @@ export interface TokensPolicy {
 }
 
 export class TokensService {
-  constructor(private readonly provider: TokensProvider, private readonly policy?: TokensPolicy) {}
+  constructor(
+    private readonly provider: TokensProvider,
+    private readonly policy?: TokensPolicy,
+  ) {}
 
   async issueAccessToken(userId: string): Promise<string> {
     await this.ensurePolicy(userId);
@@ -47,7 +50,11 @@ export class TokensService {
     if (!this.policy) return;
     const allowed = await this.policy.canIssueTokensForUser(userId);
     if (!allowed) {
-      throw new DomainError("TOKEN_ISSUANCE_FORBIDDEN", "Token issuance blocked by policy", { userId });
+      throw new DomainError(
+        "TOKEN_ISSUANCE_FORBIDDEN",
+        "Token issuance blocked by policy",
+        { userId },
+      );
     }
   }
 }

@@ -9,10 +9,15 @@ function shouldBypassCsrf(req: Request): boolean {
     return true;
   }
   const authorization = req.headers.authorization;
-  return typeof authorization === "string" && authorization.toLowerCase().startsWith("bearer ");
+  return (
+    typeof authorization === "string" &&
+    authorization.toLowerCase().startsWith("bearer ")
+  );
 }
 
-function getCsrfToken(req: Request & { csrfToken?: () => string }): string | undefined {
+function getCsrfToken(
+  req: Request & { csrfToken?: () => string },
+): string | undefined {
   if (!req.csrfToken) {
     return undefined;
   }
@@ -34,11 +39,11 @@ export function createCsrfMiddleware(config: ConfigService): RequestHandler {
       sameSite: "strict",
       secure: isProd,
       path: "/",
-      domain: cookieDomain
+      domain: cookieDomain,
     },
     value(req) {
       return (req.headers["x-csrf-token"] as string | undefined) ?? "";
-    }
+    },
   }) as unknown as RequestHandler;
 
   return (req: Request, res: Response, next: NextFunction) => {
@@ -48,21 +53,28 @@ export function createCsrfMiddleware(config: ConfigService): RequestHandler {
 
     return csrfProtection(req, res, (err?: unknown) => {
       if (err) {
-        if (typeof err === "object" && err !== null && "code" in err && (err as { code?: unknown }).code === "EBADCSRFTOKEN") {
+        if (
+          typeof err === "object" &&
+          err !== null &&
+          "code" in err &&
+          (err as { code?: unknown }).code === "EBADCSRFTOKEN"
+        ) {
           return res.status(403).json({ message: "Invalid CSRF token" });
         }
         return next(err);
       }
 
       if (req.method === "GET") {
-        const token = getCsrfToken(req as Request & { csrfToken?: () => string });
+        const token = getCsrfToken(
+          req as Request & { csrfToken?: () => string },
+        );
         if (token) {
           res.cookie(csrfCookieName, token, {
             httpOnly: false,
             sameSite: "strict",
             secure: isProd,
             path: "/",
-            domain: cookieDomain
+            domain: cookieDomain,
           });
         }
       }

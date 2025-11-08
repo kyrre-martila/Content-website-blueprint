@@ -12,7 +12,10 @@ import { DomainError } from "@org/domain";
 
 @Injectable()
 export class DomainErrorInterceptor implements NestInterceptor {
-  intercept(_context: ExecutionContext, next: CallHandler): Observable<unknown> {
+  intercept(
+    _context: ExecutionContext,
+    next: CallHandler,
+  ): Observable<unknown> {
     return next.handle().pipe(
       catchError((err: unknown) => {
         if (err instanceof DomainError) {

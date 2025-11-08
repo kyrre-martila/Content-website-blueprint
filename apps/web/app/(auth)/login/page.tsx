@@ -19,7 +19,7 @@ export default function LoginPage() {
     const r = await apiFetch("/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ identifier, password })
+      body: JSON.stringify({ identifier, password }),
     });
     if (r.ok) window.location.href = "/profile";
     else setMsg("Login failed");
@@ -34,9 +34,13 @@ export default function LoginPage() {
     const r = await apiFetch("/auth/request-magic-link", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ email }),
     });
-    setMsg(r.ok ? "Check MailHog (:8025) for the signin link." : "Failed to send link");
+    setMsg(
+      r.ok
+        ? "Check MailHog (:8025) for the signin link."
+        : "Failed to send link",
+    );
   };
 
   return (
