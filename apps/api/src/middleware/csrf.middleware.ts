@@ -18,7 +18,7 @@ function getCsrfToken(req: Request & { csrfToken?: () => string }): string | und
   }
   try {
     return req.csrfToken();
-  } catch (error) {
+  } catch {
     return undefined;
   }
 }

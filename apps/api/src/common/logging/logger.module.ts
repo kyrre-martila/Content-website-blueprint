@@ -27,7 +27,7 @@ function sanitizeBody(body: unknown): unknown {
     if (json && json.length > MAX_BODY_LENGTH) {
       return "[Truncated]";
     }
-  } catch (error) {
+  } catch {
     return "[Unserializable body]";
   }
 
