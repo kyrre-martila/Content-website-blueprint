@@ -198,7 +198,6 @@ async function bootstrap() {
 }
 
 bootstrap().catch(async (error) => {
-  // eslint-disable-next-line no-console
   console.error("Failed to bootstrap API", error);
   await shutdownOtel().catch(() => undefined);
   process.exit(1);

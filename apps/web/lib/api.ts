@@ -116,7 +116,7 @@ export function useCsrfToken(): CsrfHook {
     }
     try {
       await fetch(createHealthProbeUrl(), { credentials: "include" });
-    } catch (error) {
+    } catch {
       // Ignore network errors – token read happens regardless
     } finally {
       readToken();
