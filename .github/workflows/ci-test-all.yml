@@ -75,6 +75,7 @@ jobs:
       COOKIE_SECRET: test-cookie
       ENCRYPTION_KEY: test-encryption
       API_CORS_ORIGINS: http://localhost:3000
+      PORT: 4000
     steps:
       - uses: actions/checkout@v4
       - name: "Sanity: ensure Prisma schema exists"
@@ -104,9 +105,37 @@ jobs:
         shell: bash
       - name: Wait for API (max 2m)
         run: |
-          npx wait-on -t 120000 http://localhost:4000/health \
-            || npx wait-on -t 120000 http://localhost:4000 \
-            || (echo "API failed to start on :4000" && exit 1)
+          API_PID="$(cat api.pid 2>/dev/null || true)"
+          API_PORT="${PORT:-${API_PORT:-}}"
+
+          if [ -z "${API_PORT}" ] || [ "${API_PORT}" = "0" ]; then
+            if [ -n "${API_PID}" ]; then
+              echo "Detecting API port from PID ${API_PID}"
+              for _ in $(seq 1 120); do
+                API_PORT="$(ss -ltnp 2>/dev/null | awk -v pid="${API_PID}" '
+                  $1 == "LISTEN" && $6 ~ ("pid=" pid) {
+                    split($4, addr, ":");
+                    print addr[length(addr)];
+                    exit;
+                  }
+                ')"
+                if [ -n "${API_PORT}" ] && [ "${API_PORT}" != "0" ]; then
+                  break
+                fi
+                sleep 1
+              done
+            fi
+          fi
+
+          if [ -z "${API_PORT}" ] || [ "${API_PORT}" = "0" ]; then
+            echo "Unable to determine API port"
+            exit 1
+          fi
+
+          echo "Waiting for API on port ${API_PORT}"
+          npx wait-on -t 120000 "http://localhost:${API_PORT}/health" \
+            || npx wait-on -t 120000 "http://localhost:${API_PORT}" \
+            || (echo "API failed to start on :${API_PORT}" && exit 1)
         shell: bash
       - run: echo "✅ API responded on expected port"
       - run: pnpm --filter ./apps/api test:contract
@@ -147,7 +176,8 @@ jobs:
       COOKIE_SECRET: test-cookie
       ENCRYPTION_KEY: test-encryption
       API_CORS_ORIGINS: http://localhost:3000
-      NEXT_PUBLIC_API_ORIGIN: http://localhost:4000
+      PORT: 4000
+      NEXT_PUBLIC_API_ORIGIN: http://localhost:${{ env.PORT }}
       API_BASE_PATH: /api/v1
     steps:
       - uses: actions/checkout@v4
@@ -178,9 +208,37 @@ jobs:
         shell: bash
       - name: Wait for API (max 2m)
         run: |
-          npx wait-on -t 120000 http://localhost:4000/health \
-            || npx wait-on -t 120000 http://localhost:4000 \
-            || (echo "API failed to start on :4000" && exit 1)
+          API_PID="$(cat api.pid 2>/dev/null || true)"
+          API_PORT="${PORT:-${API_PORT:-}}"
+
+          if [ -z "${API_PORT}" ] || [ "${API_PORT}" = "0" ]; then
+            if [ -n "${API_PID}" ]; then
+              echo "Detecting API port from PID ${API_PID}"
+              for _ in $(seq 1 120); do
+                API_PORT="$(ss -ltnp 2>/dev/null | awk -v pid="${API_PID}" '
+                  $1 == "LISTEN" && $6 ~ ("pid=" pid) {
+                    split($4, addr, ":");
+                    print addr[length(addr)];
+                    exit;
+                  }
+                ')"
+                if [ -n "${API_PORT}" ] && [ "${API_PORT}" != "0" ]; then
+                  break
+                fi
+                sleep 1
+              done
+            fi
+          fi
+
+          if [ -z "${API_PORT}" ] || [ "${API_PORT}" = "0" ]; then
+            echo "Unable to determine API port"
+            exit 1
+          fi
+
+          echo "Waiting for API on port ${API_PORT}"
+          npx wait-on -t 120000 "http://localhost:${API_PORT}/health" \
+            || npx wait-on -t 120000 "http://localhost:${API_PORT}" \
+            || (echo "API failed to start on :${API_PORT}" && exit 1)
         shell: bash
       - run: echo "✅ API responded on expected port"
       - run: pnpm build:web
