@@ -49,7 +49,7 @@
 ## 3. Datamodell & migrasjonsstrategi
 
 - 🔴 **Kritiske funn (må fikses før bruk)**
-  - Ingen versjonerte migrasjoner; CI bruker `prisma db push`, noe som ikke er audit-sikkert og kan slette data ved schema-endringer.【F:.github/workflows/test-all.yml†L33-L41】
+- Ingen versjonerte migrasjoner; CI bruker `prisma db push`, noe som ikke er audit-sikkert og kan slette data ved schema-endringer.【F:.github/workflows/ci-test-all.yml†L33-L41】
 - 🟠 **Alvorlige funn**
   - Fravær av migrasjonskatalog gjør det umulig å spore endringer eller utføre rollback kontrollert.【F:packages/db/prisma/schema.prisma†L1-L51】
 - 🟡 **Moderate funn**
@@ -91,7 +91,7 @@
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - Ingen automatiske tester utover en skriptet E2E; ingen guard mot regresjoner eller sikkerhetsbrudd.【F:scripts/e2e-auth.test.mjs†L1-L66】
 - 🟠 **Alvorlige funn**
-  - CI-workflows kjører ikke lint/build/test på push; kvalitet avhenger av manuell kjøring.【F:.github/workflows/stack-init.yml†L7-L66】
+- CI-workflows kjører ikke lint/build/test på push; kvalitet avhenger av manuell kjøring.【F:.github/workflows/infra-stack-init.yml†L7-L66】
 - 🟡 **Moderate funn**
   - Mangler kontraktstester mot OpenAPI og mocked integrasjonstester for kritiske flows.【F:package.json†L9-L21】
 - 🟢 **Mindre funn / forbedringer**
@@ -104,9 +104,9 @@
 - 🔴 **Kritiske funn (må fikses før bruk)**
   - Ingen.
 - 🟠 **Alvorlige funn**
-  - Workflows trigges manuelt; uten branch-beskyttelse og automatikk mister man enterprise guardrails.【F:.github/workflows/stack-init.yml†L1-L66】【F:.github/workflows/test-all.yml†L1-L54】
+- Workflows trigges manuelt; uten branch-beskyttelse og automatikk mister man enterprise guardrails.【F:.github/workflows/infra-stack-init.yml†L1-L66】【F:.github/workflows/ci-test-all.yml†L1-L54】
 - 🟡 **Moderate funn**
-  - CI mangler matrix for Node/Flutter-versjoner og caching, noe som gir treg opplevelse og ustabilitet.【F:.github/workflows/test-all.yml†L8-L54】
+- CI mangler matrix for Node/Flutter-versjoner og caching, noe som gir treg opplevelse og ustabilitet.【F:.github/workflows/ci-test-all.yml†L8-L54】
 - 🟢 **Mindre funn / forbedringer**
   - pnpm + Turborepo script gir effektiv lokalutvikling.【F:package.json†L5-L21】
 - 💡 **Forslag til forbedring**

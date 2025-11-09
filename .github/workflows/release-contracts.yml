@@ -1,4 +1,4 @@
-name: Publish Contracts SDK
+name: Publish API Contracts
 
 on:
   push:

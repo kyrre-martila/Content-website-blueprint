@@ -1,4 +1,5 @@
-name: Update Lockfile and ESLint Deps
+name: Update Lockfile & ESLint Deps (manual)
+
 on:
   workflow_dispatch:
 

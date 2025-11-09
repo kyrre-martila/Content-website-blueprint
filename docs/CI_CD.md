@@ -4,15 +4,15 @@ The project uses GitHub Actions to enforce consistent quality checks on every pu
 
 ## Workflows Overview
 
-- **Lint & Format (`.github/workflows/lint.yml`)**
+- **Lint & Format (`.github/workflows/ci-lint.yml`)**
   - Runs ESLint and Prettier checks across all JavaScript/TypeScript sources.
   - Validates Dart formatting for the mobile app.
   - Executes on every `push` and `pull_request` event.
-- **Build Verification (`.github/workflows/build.yml`)**
+- **Build Verification (`.github/workflows/ci-build.yml`)**
   - Installs dependencies and builds the API, web app, shared domain packages, and mobile app.
   - Publishes build artifacts (API dist, Next.js output, and domain package dist) for inspection or download.
   - Executes on every `push` and `pull_request` event.
-- **Test All (`.github/workflows/test-all.yml`)**
+- **Test All (`.github/workflows/ci-test-all.yml`)**
   - Runs unit, contract, and end-to-end tests across the stack.
   - Uploads coverage and Playwright reports for auditing.
   - Executes on every `push` and `pull_request` event.

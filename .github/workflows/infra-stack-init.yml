@@ -1,4 +1,4 @@
-name: Stack Init (OpenAPI + SDKs)
+name: Stack Init / Local Env
 
 on:
   workflow_dispatch:
