@@ -1,8 +1,8 @@
 name: Build Verification
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
+  workflow_call:
 
 jobs:
   build:
