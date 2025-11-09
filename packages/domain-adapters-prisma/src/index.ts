@@ -1,2 +1,3 @@
 export * from "./prisma.client";
-export * from "./users/users.prisma.repository";
+
+export { UsersPrismaRepository } from "./users/users.prisma.repository";
