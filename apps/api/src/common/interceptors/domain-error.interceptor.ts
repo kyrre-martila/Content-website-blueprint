@@ -18,17 +18,21 @@ export class DomainErrorInterceptor implements NestInterceptor {
   ): Observable<unknown> {
     return next.handle().pipe(
       catchError((err: unknown) => {
-        if (err instanceof DomainError) {
-          const status = this.mapStatus(err.code);
+        const error = err instanceof Error ? err : new Error("Unknown error");
+
+        if (error instanceof DomainError) {
+          const domainError = error as DomainError;
+          const status = this.mapStatus(domainError.code);
           const responseBody = {
-            error: err.code,
-            message: err.message,
-            ...(err.meta ? { details: this.sanitizeMeta(err.meta) } : {}),
+            error: domainError.code,
+            message: domainError.message,
+            ...(domainError.meta
+              ? { details: this.sanitizeMeta(domainError.meta) }
+              : {}),
           };
           return throwError(() => new HttpException(responseBody, status));
         }
 
-        const error = err instanceof Error ? err : new Error("Unknown error");
         return throwError(() => error);
       }),
     );
