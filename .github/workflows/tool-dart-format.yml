@@ -1,4 +1,4 @@
-name: Run Dart format (manual)
+name: Dart Format (manual)
 
 permissions:
   contents: write

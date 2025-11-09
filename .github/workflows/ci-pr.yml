@@ -8,14 +8,14 @@ on:
 jobs:
   lint-and-format:
     name: Lint & Format
-    uses: ./.github/workflows/lint.yml
+    uses: ./.github/workflows/ci-lint.yml
 
   build:
     name: Build Verification
     needs: lint-and-format
-    uses: ./.github/workflows/build.yml
+    uses: ./.github/workflows/ci-build.yml
 
   tests:
     name: Test Suite
     needs: build
-    uses: ./.github/workflows/test-all.yml
+    uses: ./.github/workflows/ci-test-all.yml
