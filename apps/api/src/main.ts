@@ -4,7 +4,11 @@ import { AppModule } from "./modules/app.module";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
-import { ValidationPipe, RequestMethod, type INestApplication } from "@nestjs/common";
+import {
+  ValidationPipe,
+  RequestMethod,
+  type INestApplication,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { validateSecurityConfig } from "./config/security.config";
 import type { Request, Response, NextFunction } from "express";
