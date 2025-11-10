@@ -19,10 +19,7 @@ const config: Config = {
 
   moduleNameMapper: {
     "^@org/domain$": resolve(__dirname, "../../packages/domain/src/index.ts"),
-    "^@org/domain/(.*)$": resolve(
-      __dirname,
-      "../../packages/domain/src/$1",
-    ),
+    "^@org/domain/(.*)$": resolve(__dirname, "../../packages/domain/src/$1"),
 
     "^@org/domain-adapters-prisma$": resolve(
       __dirname,
