@@ -1,4 +1,4 @@
-import { DomainError } from "../common/domain-error";
+import { DomainError } from "../common/domain-error.js";
 import type { User } from "./users.entity";
 import type { UsersRepository } from "./users.repository";
 
