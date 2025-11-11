@@ -1,4 +1,4 @@
-import { DomainError } from "../common/domain-error";
+import { DomainError } from "../common/domain-error.js";
 
 export type TokenPayload = {
   subject: string;

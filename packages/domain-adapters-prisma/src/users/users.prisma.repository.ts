@@ -1,5 +1,5 @@
 import type { User, UsersRepository } from "@org/domain";
-import { getPrisma } from "../prisma.client";
+import { getPrisma } from "../prisma.client.js";
 
 type PrismaClientInstance = ReturnType<typeof getPrisma>;
 type PrismaUser = NonNullable<
