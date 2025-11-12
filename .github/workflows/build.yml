@@ -79,18 +79,22 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      # Sjekk at @prisma/client finnes i adapter-pakken
+      - name: Resolve @prisma/client (adapters)
+        working-directory: packages/domain-adapters-prisma
+        run: node -p "require.resolve('@prisma/client/package.json')"
+
       # 🔑 Generer Prisma Client i adapter-pakken mot API-skjemaet
-      - name: Generate Prisma Client for domain-adapters-prisma
-        run: |
-          if [ -f apps/api/prisma/schema.prisma ]; then
-            pnpm --filter @org/domain-adapters-prisma exec prisma generate --schema ../../apps/api/prisma/schema.prisma
-          fi
+      - name: Generate Prisma Client (adapters -> api schema)
+        working-directory: packages/domain-adapters-prisma
+        run: pnpm exec prisma generate --schema ../../apps/api/prisma/schema.prisma
 
       # (Valgfritt) Generer også for API-prosjektet om det bruker @prisma/client direkte
-      - name: Generate Prisma Client for API (optional)
+      - name: Generate Prisma Client (api project - optional)
+        working-directory: apps/api
         run: |
-          if [ -f apps/api/prisma/schema.prisma ]; then
-            pnpm --filter ./apps/api exec prisma generate --schema prisma/schema.prisma
+          if [ -f prisma/schema.prisma ]; then
+            pnpm exec prisma generate --schema prisma/schema.prisma
           fi
 
       # Bygg API og last opp logg ved feil
