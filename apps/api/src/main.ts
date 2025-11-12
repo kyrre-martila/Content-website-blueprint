@@ -42,6 +42,7 @@ function configureCors(app: INestApplication) {
   const allowedMethods = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
   const allowedHeaders =
     "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-csrf-token";
+  const exposedHeaders = "Location";
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin as string | undefined;
@@ -51,6 +52,7 @@ function configureCors(app: INestApplication) {
         res.header("Access-Control-Allow-Credentials", "true");
         res.header("Access-Control-Allow-Methods", allowedMethods);
         res.header("Access-Control-Allow-Headers", allowedHeaders);
+        res.header("Access-Control-Expose-Headers", exposedHeaders);
         return res.sendStatus(200);
       }
       return next();
@@ -68,6 +70,7 @@ function configureCors(app: INestApplication) {
     res.header("Access-Control-Allow-Credentials", "true");
     res.header("Access-Control-Allow-Methods", allowedMethods);
     res.header("Access-Control-Allow-Headers", allowedHeaders);
+    res.header("Access-Control-Expose-Headers", exposedHeaders);
 
     if (req.method === "OPTIONS") {
       return res.sendStatus(200);
