@@ -241,10 +241,13 @@ jobs:
             || (echo "API failed to start on :${API_PORT}" && exit 1)
         shell: bash
       - run: echo "✅ API responded on expected port"
-      - run: pnpm build:web
+      - name: Build Web
+        run: pnpm --filter ./apps/web build
       - name: Start Web
+        env:
+          PORT: 3001
         run: |
-          nohup pnpm --filter ./apps/web start -- --port 3001 > web.log 2>&1 &
+          nohup pnpm --filter ./apps/web start:ci > web.log 2>&1 &
           echo $! > web.pid
         shell: bash
       - name: Wait for Web (max 2m)
