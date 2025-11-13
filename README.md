@@ -47,6 +47,18 @@ Set up environment variables (see [docs/OPERATIONS.md](docs/OPERATIONS.md#local-
 - [docs/RUNBOOKS](docs/RUNBOOKS)
 - [docs/ADRS](docs/ADRS)
 
+## Auth environment
+
+- `JWT_SECRET`: Secret key used to sign authentication tokens. **Required**.
+- `JWT_EXPIRES_IN`: Lifetime for issued access tokens (for example `1h`, `2d`).
+
+## Auth endpoints
+
+- `POST /auth/register`
+- `POST /auth/login`
+
+Both endpoints accept JSON bodies and respond with `{ user, accessToken }` payloads.
+
 ## License
 
 Licensed under the [MIT License](LICENSE). © 2025 Kyrre Arne Martila.

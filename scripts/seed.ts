@@ -17,6 +17,7 @@ async function main() {
     update: {},
     create: {
       email: "admin@example.com",
+      name: "System Administrator",
       firstName: "Admin",
       lastName: "User",
       passwordHash: adminPasswordHash,
@@ -30,6 +31,7 @@ async function main() {
     update: {},
     create: {
       email: "demo.user@example.com",
+      name: "Demo User",
       firstName: "Demo",
       lastName: "User",
       passwordHash: await bcrypt.hash("Demo123!", 12),

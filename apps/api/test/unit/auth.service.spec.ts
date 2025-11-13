@@ -1,402 +1,248 @@
 import { BadRequestException, UnauthorizedException } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
+import type { JwtService } from "@nestjs/jwt";
+
 import { AuthService } from "../../src/modules/auth/auth.service";
-import type { MailerService } from "../../src/modules/mailer/mailer.service";
 import type { PrismaService } from "../../src/prisma/prisma.service";
-import type { TokensService } from "@org/domain";
 
-const hashMock = jest.fn<Promise<string>, [string, unknown?]>();
-const verifyMock = jest.fn<Promise<boolean>, [string, string]>();
-const uuidMock = jest.fn<string, []>();
-const randomBytesMock = jest.fn(() => Buffer.from("random-token", "utf-8"));
-
-jest.mock("argon2", () => ({
-  hash: (...args: [string, unknown?]) => hashMock(...args),
-  verify: (...args: [string, string]) => verifyMock(...args),
+jest.mock("bcrypt", () => ({
+  hash: jest.fn(),
+  compare: jest.fn(),
 }));
 
-jest.mock("uuid", () => ({
-  v4: () => uuidMock(),
-}));
-
-jest.mock("@prisma/client", () => ({ PrismaClient: class {} }));
-
-jest.mock("crypto", () => ({
-  randomBytes: (...args: [number]) => randomBytesMock(...args),
-}));
-
-type PrismaUserMock = {
-  findFirst: jest.Mock;
-  findUnique: jest.Mock;
-  create: jest.Mock;
-};
-
-type PrismaSessionMock = {
-  create: jest.Mock;
-  findUnique: jest.Mock;
-  update: jest.Mock;
-};
-
-type PrismaMagicLinkMock = {
-  create: jest.Mock;
-  findFirst: jest.Mock;
-  update: jest.Mock;
+const bcrypt = jest.requireMock("bcrypt") as {
+  hash: jest.MockedFunction<(password: string, saltRounds: number) => Promise<string>>;
+  compare: jest.MockedFunction<(plain: string, hash: string) => Promise<boolean>>;
 };
 
 type PrismaMock = {
-  user: PrismaUserMock;
-  session: PrismaSessionMock;
-  magicLink: PrismaMagicLinkMock;
+  user: {
+    findUnique: jest.Mock;
+    create: jest.Mock;
+  };
 };
 
-const createPrismaMock = (): PrismaMock => ({
-  user: {
-    findFirst: jest.fn(),
-    findUnique: jest.fn(),
-    create: jest.fn(),
-  },
-  session: {
-    create: jest.fn(),
-    findUnique: jest.fn(),
-    update: jest.fn(),
-  },
-  magicLink: {
-    create: jest.fn(),
-    findFirst: jest.fn(),
-    update: jest.fn(),
-  },
-});
+type JwtMock = {
+  sign: jest.Mock;
+  verify: jest.Mock;
+};
 
-const createAuthService = () => {
-  const prisma = createPrismaMock();
-  const tokens: jest.Mocked<
-    Pick<TokensService, "issueAccessToken" | "issueRefreshToken" | "verify">
-  > = {
-    issueAccessToken: jest.fn(),
-    issueRefreshToken: jest.fn(),
+type ServiceOptions = {
+  saltRounds?: number;
+};
+
+const createService = (options: ServiceOptions = {}) => {
+  const prisma: PrismaMock = {
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
+  };
+  const jwt: JwtMock = {
+    sign: jest.fn(),
     verify: jest.fn(),
   };
-  const mailer = { sendMagicLink: jest.fn() };
+  const configGet = jest.fn((key: string) => {
+    if (key === "BCRYPT_SALT_ROUNDS" && options.saltRounds !== undefined) {
+      return String(options.saltRounds);
+    }
+    return undefined;
+  });
   const config = {
-    get: jest.fn().mockReturnValue("1209600"),
+    get: configGet,
   } as unknown as ConfigService;
 
   const service = new AuthService(
     prisma as unknown as PrismaService,
-    mailer as unknown as MailerService,
-    tokens as unknown as TokensService,
+    jwt as unknown as JwtService,
     config,
   );
 
-  return { service, prisma, tokens, mailer };
+  return { service, prisma, jwt };
 };
 
 describe("AuthService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    hashMock.mockReset();
-    verifyMock.mockReset();
-    uuidMock.mockReset();
-    randomBytesMock.mockReset();
   });
 
-  it("rejects duplicate registrations", async () => {
-    const { service, prisma } = createAuthService();
-    prisma.user.findFirst.mockResolvedValueOnce({ id: "user-1" });
+  it("registers a new user with hashed password", async () => {
+    const { service, prisma, jwt } = createService();
+    prisma.user.findUnique.mockResolvedValue(null);
+    bcrypt.hash.mockResolvedValue("hashed-pass");
+    prisma.user.create.mockResolvedValue({
+      id: "user-1",
+      email: "test@example.com",
+      passwordHash: "hashed-pass",
+      name: "Test User",
+      displayName: "Test User",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    jwt.sign.mockReturnValue("signed-token");
+
+    const result = await service.register({
+      email: "test@example.com",
+      password: "Password123",
+      name: "Test User",
+    });
+
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        email: "test@example.com",
+        passwordHash: "hashed-pass",
+        name: "Test User",
+        displayName: "Test User",
+      }),
+    });
+    expect(result).toEqual({
+      user: { id: "user-1", email: "test@example.com", name: "Test User" },
+      accessToken: "signed-token",
+    });
+  });
+
+  it("rejects duplicate emails on registration", async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue({ id: "existing" });
 
     await expect(
-      service.registerUser({
-        firstName: "Test",
-        lastName: "User",
-        email: "test@example.com",
-        password: "Password123",
-        acceptedTerms: true,
-      }),
+      service.register({ email: "taken@example.com", password: "Password123" }),
     ).rejects.toBeInstanceOf(BadRequestException);
-
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
-  it("creates a new user and issues tokens", async () => {
-    const { service, prisma, tokens } = createAuthService();
-    prisma.user.findFirst.mockResolvedValueOnce(null);
-    prisma.user.create.mockResolvedValueOnce({ id: "user-42" });
-    hashMock.mockResolvedValueOnce("argon-hash");
-    tokens.issueAccessToken.mockResolvedValueOnce("access-token");
-    tokens.issueRefreshToken.mockResolvedValueOnce("refresh-token");
-    uuidMock.mockReturnValueOnce("session-jti");
+  it("registers a user without an explicit name", async () => {
+    const { service, prisma, jwt } = createService();
+    prisma.user.findUnique.mockResolvedValue(null);
+    bcrypt.hash.mockResolvedValue("hashed-pass");
+    prisma.user.create.mockResolvedValue({
+      id: "user-1",
+      email: "test@example.com",
+      passwordHash: "hashed-pass",
+      name: null,
+      displayName: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    jwt.sign.mockReturnValue("signed-token");
 
-    const result = await service.registerUser({
-      firstName: "Jane",
-      lastName: "Doe",
-      email: "jane.doe@example.com",
-      phone: "+47 123 45 678",
+    const result = await service.register({
+      email: "test@example.com",
       password: "Password123",
-      acceptedTerms: true,
+    });
+
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ name: null, displayName: null }),
+    });
+    expect(result.user.name).toBeNull();
+  });
+
+  it("authenticates a user with valid credentials", async () => {
+    const { service, prisma, jwt } = createService();
+    prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+      passwordHash: "stored-hash",
+      name: null,
+      displayName: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    bcrypt.compare.mockResolvedValue(true);
+    jwt.sign.mockReturnValue("access-token");
+
+    const result = await service.login({
+      email: "user@example.com",
+      password: "Secret123",
     });
 
     expect(result).toEqual({
+      user: { id: "user-1", email: "user@example.com", name: null },
       accessToken: "access-token",
-      refreshToken: "refresh-token",
     });
-    expect(prisma.user.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          email: "jane.doe@example.com",
-          passwordHash: "argon-hash",
-          phone: "+4712345678",
-        }),
-      }),
-    );
-    expect(prisma.session.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          userId: "user-42",
-          token: "session-jti",
-          expiresAt: expect.any(Date),
-        }),
-      }),
-    );
   });
 
-  it("validates credentials and returns issued tokens", async () => {
-    const { service, prisma, tokens } = createAuthService();
-    prisma.user.findFirst.mockResolvedValueOnce({
-      id: "user-7",
+  it("rejects invalid passwords", async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
       passwordHash: "stored-hash",
     });
-    verifyMock.mockResolvedValueOnce(true);
-    tokens.issueAccessToken.mockResolvedValueOnce("issued-access");
-    tokens.issueRefreshToken.mockResolvedValueOnce("issued-refresh");
-    uuidMock.mockReturnValueOnce("session-123");
-
-    const result = await service.login("user@example.com", "Secret123!");
-
-    expect(result).toEqual({
-      accessToken: "issued-access",
-      refreshToken: "issued-refresh",
-    });
-    expect(prisma.session.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          token: "session-123",
-          userId: "user-7",
-        }),
-      }),
-    );
-  });
-
-  it("rejects registration when terms are not accepted", async () => {
-    const { service } = createAuthService();
+    bcrypt.compare.mockResolvedValue(false);
 
     await expect(
-      service.registerUser({
-        firstName: "No",
-        lastName: "Terms",
-        email: "user@example.com",
-        password: "Password123",
-        acceptedTerms: false,
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+      service.login({ email: "user@example.com", password: "WrongPass" }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it("rejects invalid email and password policies", async () => {
-    const { service } = createAuthService();
+  it("rejects login when no user is found", async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue(null);
 
     await expect(
-      service.registerUser({
-        firstName: "Invalid",
-        lastName: "Email",
-        email: "not-an-email",
-        password: "Password123",
-        acceptedTerms: true,
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException);
-
-    await expect(
-      service.registerUser({
-        firstName: "Invalid",
-        lastName: "Password",
-        email: "valid@example.com",
-        password: "short",
-        acceptedTerms: true,
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+      service.login({ email: "missing@example.com", password: "Password123" }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it("rejects invalid phone numbers", async () => {
-    const { service } = createAuthService();
-
-    await expect(
-      service.registerUser({
-        firstName: "Phone",
-        lastName: "Invalid",
-        email: "phone@example.com",
-        phone: "abc123",
-        password: "Password123",
-        acceptedTerms: true,
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException);
-  });
-
-  it("rejects invalid credentials", async () => {
-    const { service, prisma } = createAuthService();
-    prisma.user.findFirst.mockResolvedValueOnce({
+  it("decodes and validates a user from a token", async () => {
+    const { service, prisma, jwt } = createService();
+    jwt.verify.mockReturnValue({ sub: "user-1", email: "user@example.com" });
+    prisma.user.findUnique.mockResolvedValue({
       id: "user-1",
+      email: "user@example.com",
       passwordHash: "hash",
+      name: "User",
+      displayName: "User",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
-    verifyMock.mockResolvedValueOnce(false);
 
-    await expect(
-      service.login("user@example.com", "wrong"),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    const result = await service.validateUser("token");
+    expect(result).toEqual({ id: "user-1", email: "user@example.com", name: "User" });
   });
 
-  it("refreshes tokens for active sessions", async () => {
-    const { service, prisma, tokens } = createAuthService();
-    tokens.verify.mockResolvedValueOnce({
-      subject: "user-9",
-      tokenId: "jti-old",
+  it("returns null for invalid tokens", () => {
+    const { service, jwt } = createService();
+    jwt.verify.mockImplementation(() => {
+      throw new Error("invalid");
     });
-    prisma.session.findUnique.mockResolvedValueOnce({
-      token: "jti-old",
-      userId: "user-9",
-      revokedAt: null,
-      expiresAt: new Date(Date.now() + 1000),
-    });
-    tokens.issueAccessToken.mockResolvedValueOnce("access-new");
-    tokens.issueRefreshToken.mockResolvedValueOnce("refresh-new");
-    uuidMock.mockReturnValueOnce("jti-new");
 
-    const result = await service.refresh("refresh-token-value");
-
-    expect(result).toEqual({
-      accessToken: "access-new",
-      refreshToken: "refresh-new",
-    });
-    expect(prisma.session.update).toHaveBeenCalledWith({
-      where: { token: "jti-old" },
-      data: { revokedAt: expect.any(Date) },
-    });
-    expect(prisma.session.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ token: "jti-new", userId: "user-9" }),
-      }),
-    );
+    expect(service.decodeToken("bad-token")).toBeNull();
   });
 
-  it("throws when refresh token session is missing", async () => {
-    const { service, prisma, tokens } = createAuthService();
-    tokens.verify.mockResolvedValueOnce({
-      subject: "user-1",
-      tokenId: "missing",
-    });
-    prisma.session.findUnique.mockResolvedValueOnce(null);
+  it("returns null when decoding empty tokens", () => {
+    const { service } = createService();
+    expect(service.decodeToken("")).toBeNull();
+  });
 
-    await expect(service.refresh("bad-token")).rejects.toBeInstanceOf(
+  it("throws when token payload cannot be decoded", async () => {
+    const { service, jwt } = createService();
+    jwt.verify.mockImplementation(() => {
+      throw new Error("invalid");
+    });
+
+    await expect(service.validateUser("bad-token")).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
   });
 
-  it("throws when refresh payload is malformed", async () => {
-    const { service, tokens } = createAuthService();
-    tokens.verify.mockResolvedValueOnce({
-      subject: undefined,
-      tokenId: undefined,
-    });
+  it("throws when no user matches the token subject", async () => {
+    const { service, prisma, jwt } = createService();
+    jwt.verify.mockReturnValue({ sub: "user-1", email: "user@example.com" });
+    prisma.user.findUnique.mockResolvedValue(null);
 
-    await expect(service.refresh("bad")).rejects.toBeInstanceOf(
+    await expect(service.validateUser("token")).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
   });
 
-  it("creates and emails magic links", async () => {
-    const { service, prisma, mailer } = createAuthService();
-    const originalAppUrl = process.env.APP_URL;
-    process.env.APP_URL = "http://localhost:3000";
-    hashMock.mockResolvedValueOnce("hashed-token");
-    randomBytesMock.mockReturnValueOnce(Buffer.from("magic", "utf-8"));
+  it("hashes passwords using configured salt rounds", async () => {
+    const { service } = createService({ saltRounds: 12 });
+    bcrypt.hash.mockResolvedValue("hashed");
 
-    const result = await service.requestMagicLink("magic@example.com");
+    await service.hashPassword("Password123");
 
-    expect(result.token).toBe(Buffer.from("magic", "utf-8").toString("hex"));
-    expect(prisma.magicLink.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        email: "magic@example.com",
-        token: "hashed-token",
-      }),
-    });
-    expect(mailer.sendMagicLink).toHaveBeenCalledWith(
-      "magic@example.com",
-      expect.stringContaining("/auth/callback"),
-    );
-    process.env.APP_URL = originalAppUrl;
-  });
-
-  it("verifies magic links and creates users when needed", async () => {
-    const { service, prisma, tokens } = createAuthService();
-    const now = new Date(Date.now() + 60_000);
-    prisma.magicLink.findFirst.mockResolvedValueOnce({
-      id: "ml-1",
-      email: "new@example.com",
-      token: "hashed",
-      expiresAt: now,
-    });
-    verifyMock.mockResolvedValueOnce(true);
-    prisma.user.findUnique.mockResolvedValueOnce(null);
-    prisma.user.create.mockResolvedValueOnce({ id: "user-new" });
-    tokens.issueAccessToken.mockResolvedValueOnce("access-token");
-    tokens.issueRefreshToken.mockResolvedValueOnce("refresh-token");
-    uuidMock.mockReturnValueOnce("ml-session");
-
-    const result = await service.verifyMagicLink(
-      "new@example.com",
-      "token-value",
-    );
-
-    expect(result).toEqual({
-      userId: "user-new",
-      accessToken: "access-token",
-      refreshToken: "refresh-token",
-    });
-    expect(prisma.magicLink.update).toHaveBeenCalledWith({
-      where: { id: "ml-1" },
-      data: { usedAt: expect.any(Date) },
-    });
-    expect(prisma.user.create).toHaveBeenCalledWith({
-      data: { email: "new@example.com" },
-    });
-  });
-
-  it("rejects invalid magic links", async () => {
-    const { service, prisma } = createAuthService();
-    prisma.magicLink.findFirst.mockResolvedValueOnce(null);
-
-    await expect(
-      service.verifyMagicLink("nope@example.com", "token"),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
-  });
-
-  it("logs out and revokes sessions when refresh token present", async () => {
-    const { service, prisma, tokens } = createAuthService();
-    tokens.verify.mockResolvedValueOnce({
-      subject: "user-1",
-      tokenId: "jti-logout",
-    });
-
-    await service.logout("refresh-token-value");
-
-    expect(prisma.session.update).toHaveBeenCalledWith({
-      where: { token: "jti-logout" },
-      data: { revokedAt: expect.any(Date) },
-    });
-  });
-
-  it("ignores logout when no token is provided", async () => {
-    const { service, prisma } = createAuthService();
-
-    await service.logout(null);
-
-    expect(prisma.session.update).not.toHaveBeenCalled();
+    expect(bcrypt.hash).toHaveBeenCalledWith("Password123", 12);
   });
 });

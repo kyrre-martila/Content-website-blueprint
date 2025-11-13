@@ -8,7 +8,7 @@ type PrismaUser = NonNullable<
 
 function toDomain(user: PrismaUser): User {
   const displayName =
-    user.displayName ?? `${user.firstName} ${user.lastName}`.trim();
+    user.name ?? user.displayName ?? `${user.firstName} ${user.lastName}`.trim();
   return {
     id: user.id,
     email: user.email,
@@ -61,6 +61,7 @@ export class UsersPrismaRepository implements UsersRepository {
     const user = await this.prisma.user.create({
       data: {
         email: data.email,
+        name: data.name ?? null,
         displayName: data.name ?? null,
         firstName,
         lastName,
@@ -80,6 +81,7 @@ export class UsersPrismaRepository implements UsersRepository {
     }
     if (data.name !== undefined) {
       const { firstName, lastName } = splitName(data.name);
+      updateData.name = data.name ?? null;
       updateData.displayName = data.name ?? null;
       updateData.firstName = firstName;
       updateData.lastName = lastName;
@@ -102,6 +104,7 @@ export class UsersPrismaRepository implements UsersRepository {
         data.profile.displayName !== undefined
       ) {
         updateData.displayName = data.profile.displayName;
+        updateData.name = data.profile.displayName ?? null;
       }
     }
     if (Object.keys(updateData).length === 0) {

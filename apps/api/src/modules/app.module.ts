@@ -4,7 +4,6 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { AuthModule } from "./auth/auth.module";
 import { HealthModule } from "./health/health.module";
 import { UsersModule } from "./users/users.module";
-import { MailerModule } from "./mailer/mailer.module";
 import { LoggerModule } from "../common/logging/logger.module";
 import { MetricsModule } from "../common/metrics/metrics.module";
 
@@ -17,7 +16,6 @@ import { MetricsModule } from "../common/metrics/metrics.module";
     UsersModule,
     AuthModule,
     HealthModule,
-    MailerModule,
   ],
 })
 export class AppModule {}

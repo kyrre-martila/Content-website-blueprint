@@ -1,212 +1,134 @@
 import {
+  BadRequestException,
   Injectable,
   UnauthorizedException,
-  BadRequestException,
 } from "@nestjs/common";
-import { PrismaService } from "../../prisma/prisma.service";
-import { randomBytes } from "crypto";
-import * as argon2 from "argon2";
-import { v4 as uuidv4 } from "uuid";
-import { MailerService } from "../mailer/mailer.service";
 import { ConfigService } from "@nestjs/config";
-import { TokensService } from "@org/domain";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+
+import { PrismaService } from "../../prisma/prisma.service";
+
+export type PublicUser = {
+  id: string;
+  email: string;
+  name: string | null;
+};
+
+type PrismaUser = {
+  id: string;
+  email: string;
+  passwordHash: string | null;
+  name: string | null;
+  displayName: string | null;
+};
+
+export type AuthResult = {
+  user: PublicUser;
+  accessToken: string;
+};
+
+type JwtPayload = { sub: string; email: string };
 
 @Injectable()
 export class AuthService {
-  private readonly refreshTtlMs: number;
+  private readonly saltRounds: number;
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailer: MailerService,
-    private readonly tokens: TokensService,
-    private readonly config: ConfigService,
+    private readonly jwt: JwtService,
+    config: ConfigService,
   ) {
-    this.refreshTtlMs =
-      Number(this.config.get("REFRESH_TOKEN_TTL_SEC") ?? 1209600) * 1000;
+    const configuredRounds = Number(config.get("BCRYPT_SALT_ROUNDS"));
+    this.saltRounds = Number.isFinite(configuredRounds) && configuredRounds > 0
+      ? configuredRounds
+      : 10;
   }
 
-  private async issueForUser(userId: string) {
-    const jti = uuidv4();
-    const refreshToken = await this.tokens.issueRefreshToken(userId, jti);
-    const accessToken = await this.tokens.issueAccessToken(userId);
-    const rtExp = new Date(Date.now() + this.refreshTtlMs);
-    await this.prisma.session.create({
-      data: { userId, token: jti, expiresAt: rtExp },
-    });
-    return { accessToken, refreshToken };
+  async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, this.saltRounds);
   }
 
-  async requestMagicLink(email: string) {
-    const token = randomBytes(32).toString("hex");
-    const tokenDigest = await argon2.hash(token);
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    await this.prisma.magicLink.create({
-      data: { email, token: tokenDigest, expiresAt },
-    });
-
-    // Bygg callback-URL inn i web-klienten
-    const appUrl = process.env.APP_URL || "http://localhost:3000";
-    const callback = new URL("/auth/callback", appUrl);
-    callback.searchParams.set("email", email);
-    callback.searchParams.set("token", token);
-
-    // Send e-post (til MailHog i dev)
-    await this.mailer.sendMagicLink(email, callback.toString());
-
-    // Dev-kvalitet: returner token også (enkelt å teste via API)
-    return { token };
+  async comparePassword(plain: string, hash: string): Promise<boolean> {
+    return bcrypt.compare(plain, hash);
   }
 
-  async verifyMagicLink(email: string, token: string) {
-    const ml = await this.prisma.magicLink.findFirst({
-      where: { email, usedAt: null },
-      orderBy: { createdAt: "desc" },
-    });
-    if (
-      !ml ||
-      ml.expiresAt < new Date() ||
-      !(await argon2.verify(ml.token, token))
-    ) {
-      throw new UnauthorizedException("Invalid or expired magic link");
-    }
-    await this.prisma.magicLink.update({
-      where: { id: ml.id },
-      data: { usedAt: new Date() },
-    });
-
-    let user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) user = await this.prisma.user.create({ data: { email } });
-
-    const tokens = await this.issueForUser(user.id);
-
-    return { userId: user.id, ...tokens };
+  signToken(payload: JwtPayload): string {
+    return this.jwt.sign(payload);
   }
 
-  async refresh(oldRefresh: string) {
-    const payload = await this.tokens.verify(oldRefresh); // kaster ved ugyldig/utløpt
-    if (!payload.subject || !payload.tokenId)
-      throw new UnauthorizedException("Malformed token");
-
-    // Sørg for at JTI finnes og ikke er revokert/utløpt
-    const sess = await this.prisma.session.findUnique({
-      where: { token: payload.tokenId },
-    });
-    if (!sess || sess.revokedAt || sess.expiresAt < new Date()) {
-      throw new UnauthorizedException("Session revoked/expired");
-    }
-
-    // Roter: revoker gammel, opprett ny JTI + tokens
-    await this.prisma.session.update({
-      where: { token: payload.tokenId },
-      data: { revokedAt: new Date() },
-    });
-    const newJti = uuidv4();
-    const refreshToken = await this.tokens.issueRefreshToken(
-      payload.subject,
-      newJti,
-    );
-    const accessToken = await this.tokens.issueAccessToken(payload.subject);
-    const rtExp = new Date(Date.now() + this.refreshTtlMs);
-    await this.prisma.session.create({
-      data: { userId: payload.subject, token: newJti, expiresAt: rtExp },
-    });
-
-    return { accessToken, refreshToken };
-  }
-
-  async logout(refreshOrCookie: string | null) {
-    if (!refreshOrCookie) return;
+  decodeToken(token: string): JwtPayload | null {
+    if (!token) return null;
     try {
-      const p = await this.tokens.verify(refreshOrCookie);
-      if (p.tokenId) {
-        await this.prisma.session.update({
-          where: { token: p.tokenId },
-          data: { revokedAt: new Date() },
-        });
-      }
+      return this.jwt.verify<JwtPayload>(token);
     } catch {
-      /* ignore */
+      return null;
     }
   }
 
-  async registerUser(input: {
-    firstName: string;
-    lastName: string;
+  async register(input: {
     email: string;
-    phone?: string | null;
-    birthDate?: string | null;
     password: string;
-    acceptedTerms: boolean;
-  }) {
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      birthDate,
-      password,
-      acceptedTerms,
-    } = input;
-
-    if (!acceptedTerms) throw new BadRequestException("Terms must be accepted");
-
-    // Enkel e-post- og passord-policy (kan strammes senere)
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      throw new BadRequestException("Invalid email");
-    if (password.length < 8 || password.length > 128)
-      throw new BadRequestException("Invalid password length");
-
-    // Telefon (valgfri) – enkel normalisering, fjern mellomrom
-    let normalizedPhone: string | null = null;
-    if (phone && phone.trim()) {
-      normalizedPhone = phone.replace(/\s+/g, "");
-      // tillat + og sifre; enkel sjekk (E.164-lignende)
-      if (!/^\+?[0-9]{7,15}$/.test(normalizedPhone)) {
-        throw new BadRequestException("Invalid phone");
-      }
+    name?: string;
+  }): Promise<AuthResult> {
+    const email = input.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new BadRequestException("Email already in use");
     }
 
-    const exists = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { email },
-          ...(normalizedPhone ? [{ phone: normalizedPhone }] : []),
-        ],
-      },
-    });
-    if (exists) throw new BadRequestException("User already exists");
-
-    const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
-    const trimmedFirstName = firstName.trim();
-    const trimmedLastName = lastName.trim();
-    const computedDisplayName = `${trimmedFirstName} ${trimmedLastName}`.trim();
+    const passwordHash = await this.hashPassword(input.password);
+    const name = input.name?.trim() || null;
 
     const user = await this.prisma.user.create({
       data: {
         email,
-        phone: normalizedPhone,
-        ...(trimmedFirstName ? { firstName: trimmedFirstName } : {}),
-        ...(trimmedLastName ? { lastName: trimmedLastName } : {}),
-        birthDate: birthDate ? new Date(`${birthDate}T00:00:00.000Z`) : null,
         passwordHash,
-        acceptedTerms: true,
-        ...(computedDisplayName ? { displayName: computedDisplayName } : {}),
+        name,
+        displayName: name,
       },
     });
 
-    return this.issueForUser(user.id);
+    const accessToken = this.signToken({ sub: user.id, email: user.email });
+    return { user: this.toPublicUser(user), accessToken };
   }
 
-  async login(identifier: string, password: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email: identifier }, { phone: identifier }],
-      },
-    });
-    if (!user || !user.passwordHash)
+  async login(input: { email: string; password: string }): Promise<AuthResult> {
+    const email = input.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (!user || !user.passwordHash) {
       throw new UnauthorizedException("Invalid credentials");
-    const ok = await argon2.verify(user.passwordHash, password);
-    if (!ok) throw new UnauthorizedException("Invalid credentials");
-    return this.issueForUser(user.id);
+    }
+
+    const isValid = await this.comparePassword(input.password, user.passwordHash);
+    if (!isValid) {
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    const accessToken = this.signToken({ sub: user.id, email: user.email });
+    return { user: this.toPublicUser(user), accessToken };
+  }
+
+  async validateUser(token: string): Promise<PublicUser> {
+    const payload = this.decodeToken(token);
+    if (!payload) {
+      throw new UnauthorizedException("Invalid token");
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user) {
+      throw new UnauthorizedException("Invalid token");
+    }
+
+    return this.toPublicUser(user);
+  }
+
+  private toPublicUser(user: PrismaUser): PublicUser {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name ?? user.displayName ?? null,
+    };
   }
 }
