@@ -7,7 +7,9 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import type { Request } from "express";
-import { TokensService, UsersService as UsersDomainService } from "@org/domain";
+import { UsersService as UsersDomainService } from "@org/domain";
+
+import { AuthService } from "../auth/auth.service";
 
 class UserProfileDto {
   @ApiProperty()
@@ -48,7 +50,7 @@ class MeResponseDto {
 export class UsersController {
   constructor(
     private readonly usersService: UsersDomainService,
-    private readonly tokens: TokensService,
+    private readonly auth: AuthService,
   ) {}
 
   @Get()
@@ -61,8 +63,10 @@ export class UsersController {
       (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
     if (!access) throw new UnauthorizedException("Missing token");
 
-    const payload = await this.tokens.verify(access);
-    const user = await this.usersService.getProfile(payload.subject);
+    const payload = this.auth.decodeToken(access);
+    if (!payload) throw new UnauthorizedException("Invalid token");
+
+    const user = await this.usersService.getProfile(payload.sub);
 
     const safeUser: UserProfileDto = {
       id: user.id,

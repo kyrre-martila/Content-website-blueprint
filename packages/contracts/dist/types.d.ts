@@ -8,22 +8,6 @@ export interface paths {
     /** Health check */
     get: operations["health"];
   };
-  "/api/v1/auth/request-magic-link": {
-    /** Request a magic login link */
-    post: operations["requestMagicLink"];
-  };
-  "/api/v1/auth/verify-magic-link": {
-    /** Verify a magic login link */
-    post: operations["verifyMagicLink"];
-  };
-  "/api/v1/auth/refresh": {
-    /** Refresh access token */
-    post: operations["refreshTokens"];
-  };
-  "/api/v1/auth/logout": {
-    /** Logout current session */
-    post: operations["logout"];
-  };
   "/api/v1/auth/register": {
     /** Register a new user */
     post: operations["register"];
@@ -42,13 +26,15 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
-    MagicLinkResponse: {
-      ok: boolean;
+    PublicUser: {
+      id: string;
+      /** Format: email */
+      email: string;
+      name: string | null;
     };
-    TokenPairResponse: {
-      ok: boolean;
+    AuthResponse: {
+      user: components["schemas"]["PublicUser"];
       accessToken: string;
-      refreshToken: string;
     };
     UserProfile: {
       id: string;
@@ -94,82 +80,15 @@ export interface operations {
       };
     };
   };
-  /** Request a magic login link */
-  requestMagicLink: {
-    requestBody: {
-      content: {
-        "application/json": {
-          /** Format: email */
-          email: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Magic link dispatched */
-      201: {
-        content: {
-          "application/json": components["schemas"]["MagicLinkResponse"];
-        };
-      };
-    };
-  };
-  /** Verify a magic login link */
-  verifyMagicLink: {
-    requestBody: {
-      content: {
-        "application/json": {
-          /** Format: email */
-          email: string;
-          token: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Tokens issued */
-      201: {
-        content: {
-          "application/json": components["schemas"]["TokenPairResponse"];
-        };
-      };
-    };
-  };
-  /** Refresh access token */
-  refreshTokens: {
-    responses: {
-      /** @description Tokens rotated */
-      201: {
-        content: {
-          "application/json": components["schemas"]["TokenPairResponse"];
-        };
-      };
-      /** @description Missing refresh token */
-      401: {
-        content: never;
-      };
-    };
-  };
-  /** Logout current session */
-  logout: {
-    responses: {
-      /** @description Logged out */
-      204: {
-        content: never;
-      };
-    };
-  };
   /** Register a new user */
   register: {
     requestBody: {
       content: {
         "application/json": {
-          firstName: string;
-          lastName: string;
           /** Format: email */
           email: string;
-          phone?: string | null;
-          birthDate?: string | null;
           password: string;
-          acceptedTerms: boolean;
+          name?: string | null;
         };
       };
     };
@@ -177,8 +96,12 @@ export interface operations {
       /** @description User registered */
       201: {
         content: {
-          "application/json": components["schemas"]["TokenPairResponse"];
+          "application/json": components["schemas"]["AuthResponse"];
         };
+      };
+      /** @description Email already in use */
+      400?: {
+        content: never;
       };
     };
   };
@@ -187,20 +110,21 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": {
-          identifier: string;
+          /** Format: email */
+          email: string;
           password: string;
         };
       };
     };
     responses: {
       /** @description User authenticated */
-      201: {
+      200: {
         content: {
-          "application/json": components["schemas"]["TokenPairResponse"];
+          "application/json": components["schemas"]["AuthResponse"];
         };
       };
       /** @description Invalid credentials */
-      401: {
+      401?: {
         content: never;
       };
     };
@@ -208,14 +132,14 @@ export interface operations {
   /** Get current user profile */
   getMe: {
     responses: {
-      /** @description Current user */
+      /** @description User profile */
       200: {
         content: {
           "application/json": components["schemas"]["MeResponse"];
         };
       };
-      /** @description Unauthorized */
-      401: {
+      /** @description Missing or invalid token */
+      401?: {
         content: never;
       };
     };

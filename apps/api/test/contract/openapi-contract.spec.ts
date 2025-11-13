@@ -4,7 +4,6 @@ import { resolve } from "node:path";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import {
-  TokensService,
   UsersService as UsersDomainService,
   type User,
   type UsersRepository,
@@ -16,8 +15,6 @@ import { DomainErrorInterceptor } from "../../src/common/interceptors/domain-err
 import { AppModule } from "../../src/modules/app.module";
 import { AuthController } from "../../src/modules/auth/auth.controller";
 import { AuthService } from "../../src/modules/auth/auth.service";
-import { JwtTokensProvider } from "../../src/modules/auth/jwt.tokens.provider";
-import { JwtUtil } from "../../src/modules/auth/jwt.util";
 import { UsersController } from "../../src/modules/users/users.controller";
 import { PrismaService } from "../../src/prisma/prisma.service";
 
@@ -53,28 +50,16 @@ const usersRepositoryStub: UsersRepository = {
   update: async () => testUser,
 };
 
-const tokensServiceStub: Pick<TokensService, "verify"> = {
-  verify: async () => ({ subject: testUser.id }),
-};
-
 const authServiceStub: Partial<AuthService> = {
   login: async () => ({
+    user: { id: testUser.id, email: testUser.email, name: testUser.name ?? null },
     accessToken: "access-token",
-    refreshToken: "refresh-token",
   }),
-  refresh: async () => ({
+  register: async () => ({
+    user: { id: testUser.id, email: testUser.email, name: testUser.name ?? null },
     accessToken: "access-token",
-    refreshToken: "refresh-token",
   }),
-  registerUser: async () => ({
-    accessToken: "access-token",
-    refreshToken: "refresh-token",
-  }),
-  requestMagicLink: async () => ({ token: "dev-token" }),
-  verifyMagicLink: async () => ({
-    accessToken: "access-token",
-    refreshToken: "refresh-token",
-  }),
+  decodeToken: () => ({ sub: testUser.id, email: testUser.email }),
 };
 
 describe("OpenAPI contract", () => {
@@ -89,20 +74,6 @@ describe("OpenAPI contract", () => {
       .useValue(usersRepositoryStub)
       .overrideProvider(AuthService)
       .useValue(authServiceStub)
-      .overrideProvider(TokensService)
-      .useValue(tokensServiceStub)
-      .overrideProvider(JwtTokensProvider)
-      .useValue({
-        signAccessToken: async () => "access-token",
-        signRefreshToken: async () => "refresh-token",
-        verifyToken: async () => ({ subject: testUser.id }),
-      } satisfies Partial<JwtTokensProvider>)
-      .overrideProvider(JwtUtil)
-      .useValue({
-        signAccess: () => "access-token",
-        signRefresh: () => "refresh-token",
-        verifyToken: () => ({ sub: testUser.id }),
-      } satisfies Partial<JwtUtil>)
       .overrideProvider(PrismaService)
       .useValue({
         $connect: async () => undefined,
@@ -129,11 +100,11 @@ describe("OpenAPI contract", () => {
       authServiceStub as AuthService;
 
     const usersController = app.get(UsersController);
-    (usersController as unknown as { tokens: TokensService }).tokens =
-      tokensServiceStub as TokensService;
+    (usersController as unknown as { usersService: UsersDomainService })
+      .usersService = new UsersDomainService(usersRepositoryStub);
     (
-      usersController as unknown as { usersService: UsersDomainService }
-    ).usersService = new UsersDomainService(usersRepositoryStub);
+      usersController as unknown as { auth: AuthService }
+    ).auth = authServiceStub as AuthService;
   });
 
   afterAll(async () => {
@@ -146,16 +117,16 @@ describe("OpenAPI contract", () => {
   it("POST /api/v1/auth/login conforms to contract", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ identifier: "user@example.com", password: "Password123!" });
+      .send({ email: "user@example.com", password: "Password123!" });
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     expect(response).toSatisfyApiSpec();
   });
 
-  it("POST /api/v1/auth/refresh conforms to contract", async () => {
+  it("POST /api/v1/auth/register conforms to contract", async () => {
     const response = await request(app.getHttpServer())
-      .post("/api/v1/auth/refresh")
-      .set("Authorization", "Bearer refresh-token");
+      .post("/api/v1/auth/register")
+      .send({ email: "user@example.com", password: "Password123!", name: "User" });
 
     expect(response.status).toBe(201);
     expect(response).toSatisfyApiSpec();
