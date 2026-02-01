@@ -61,4 +61,4 @@ Both endpoints accept JSON bodies and respond with `{ user, accessToken }` paylo
 
 ## License
 
-Licensed under the [MIT License](LICENSE). © 2025 Kyrre Arne Martila.
+Licensed under the [MIT License](LICENSE). © 2025 Kyrre Martila.
