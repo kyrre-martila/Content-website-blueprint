@@ -7,12 +7,12 @@
 3. Install deps: `pnpm install`.
 4. Generate Prisma client: `pnpm prisma:generate`.
 5. Run migrations: `pnpm prisma migrate deploy`.
-6. Seed dev data (optional): `pnpm prisma db seed`.
-7. Start apps: `pnpm dev` (web/api).
+6. Seed dev data/content (optional): `pnpm prisma db seed`.
+7. Start services: `pnpm dev` (web/api).
 
 ## CI/CD Hooks
 
-- `pnpm prisma migrate deploy` runs in CI before application tests.
+- `pnpm prisma migrate deploy` runs in CI before API/web tests for the website blueprint.
 - Seed script runs only in dev and dedicated CI jobs tagged `Seed`.
 
 ## Database Rollback
@@ -35,5 +35,5 @@
 1. Check Prometheus `/metrics` via Traefik secure endpoint.
 2. Inspect centralized logs (Pino JSON) for spikes in error level.
 3. Review traces in OTLP backend for failing spans.
-4. Test database connectivity: `psql $DATABASE_URL -c 'select 1'`.
+4. Test database connectivity: `psql $DATABASE_URL -c "select 1"`.
 5. If degraded, follow [docs/RUNBOOKS/incident-response.md](RUNBOOKS/incident-response.md).

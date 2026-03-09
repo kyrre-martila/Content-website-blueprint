@@ -1,14 +1,14 @@
-# Fullstack App Blueprint
+# Content Website Blueprint
 
-An opinionated monorepo that combines a NestJS API, Next.js web client, Prisma ORM, and Turborepo tooling for content-driven websites.
+An opinionated monorepo blueprint for content-driven websites. It combines a NestJS API, Next.js frontend, Prisma ORM, and Turborepo tooling to help teams ship public websites with structured content, editor workflows, and production-ready operations.
 
 ## Who is this for?
 
-Developers who want a ready-made blueprint for SaaS, analytics dashboards, or similar web applications built with NestJS + Next.js + Prisma + Turborepo. It trades flexibility for conventions so you can start from a production-inspired foundation instead of wiring everything from scratch.
+Developers and product teams who want a ready-made foundation for public websites with CMS-style authoring workflows. This blueprint is designed for marketing sites, editorial websites, and content platforms that need admin/auth, APIs, reusable content blocks, and a consistent deployment + operations setup.
 
 ## Status
 
-This repository is a blueprint, not a finished product. The patterns are production-inspired, but every project should review and adapt configuration, security, and deployment choices to match its own requirements.
+This repository is a blueprint, not a finished product. The architecture and defaults are production-inspired, but each implementation should adapt content models, security settings, and deployment configuration to fit its own editorial and publishing requirements.
 
 ## Quick start
 
@@ -19,21 +19,23 @@ pnpm prisma db seed
 pnpm dev
 ```
 
-Set up environment variables (see [docs/OPERATIONS.md](docs/OPERATIONS.md#local-development)) before running commands.
+Set up environment variables first (see [docs/OPERATIONS.md](docs/OPERATIONS.md#local-development)).
 
 ## Overview
 
 - Stack: NestJS API, Next.js web, Prisma ORM, Turborepo monorepo.
+- Product shape: public website frontend + admin/editor area backed by authenticated APIs.
+- Content model: pages and composable block-based sections stored in PostgreSQL.
 - Contracts: OpenAPI under `packages/contracts`.
 - Infra: Docker Compose for local + prod simulation, GitHub Actions CI/CD.
 
 ## Quickstart (development)
 
-- Follow [docs/OPERATIONS.md](docs/OPERATIONS.md#local-development) for environment, migrations, seeding, and app startup.
+- Follow [docs/OPERATIONS.md](docs/OPERATIONS.md#local-development) for environment setup, migrations, seed content, and local startup.
 
 ## Quickstart (prod simulation)
 
-- Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#prod-simulation) to run the Traefik + services stack locally.
+- Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#prod-simulation) to run the production-like Traefik + services stack locally.
 
 ## Operational References
 
@@ -54,8 +56,8 @@ Set up environment variables (see [docs/OPERATIONS.md](docs/OPERATIONS.md#local-
 
 ## Auth endpoints
 
-- `POST /auth/register`
-- `POST /auth/login`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
 
 Both endpoints accept JSON bodies and respond with `{ user, accessToken }` payloads.
 

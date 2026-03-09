@@ -1,5 +1,7 @@
 # Security Operations
 
+Security guidance for the content website blueprint (public site + admin/editor surfaces).
+
 ## Required Secrets
 
 - `JWT_SECRET`: HMAC signing key for access tokens.
@@ -22,7 +24,7 @@
 ## CORS Configuration
 
 - API reads `API_CORS_ORIGINS` and rejects requests whose `Origin` is missing from the allowlist.
-- Update the env var during deployments to add/remove origins.
+- Update the env var during deployments to add/remove origins for public and admin website domains.
 
 ## Token Handling
 

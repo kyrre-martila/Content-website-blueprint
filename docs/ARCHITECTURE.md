@@ -1,9 +1,12 @@
 # Architecture
 
+This blueprint is structured for content-driven websites: a public website experience backed by authenticated admin/editor workflows, shared content APIs, and typed contracts.
+
 ## Layering
 
 - Controller (NestJS/Next.js API route) → Domain Service (business logic) → Repository Interface (port) → Prisma Adapter (implements repository) → PostgreSQL database.
 - Web clients use generated SDKs; shared DTOs live in `packages/contracts`.
+- Public pages and admin/editor tooling both consume the same API/domain boundaries to keep content behavior consistent across surfaces.
 
 ## Login / Refresh Sequence
 

@@ -4,8 +4,8 @@
 
 1. Copy `.env.prod.example` → `.env.prod` and set secrets.
 2. Run stack: `docker compose -f infra/docker-compose.prod.yml --env-file .env.prod up -d`.
-3. Wait for Traefik dashboard at `https://traefik.localhost` (self-signed TLS).
-4. Verify API health at `https://api.localhost/health` and web at `https://app.localhost/api/health`.
+3. Wait for Traefik admin UI at `https://traefik.localhost` (self-signed TLS).
+4. Verify API health at `https://api.localhost/health` and website health at `https://app.localhost/api/health`.
 
 ## Environment Variables
 
