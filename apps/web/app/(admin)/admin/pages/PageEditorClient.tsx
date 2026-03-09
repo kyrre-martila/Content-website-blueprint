@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import type { AdminPage, AdminPageBlockType } from "../../../../lib/admin/pages";
 
+type AdminMedia = {
+  id: string;
+  url: string;
+  alt: string;
+};
+
 const BLOCK_TYPES: AdminPageBlockType[] = [
   "hero",
   "rich_text",
@@ -53,6 +59,27 @@ export function PageEditorClient({ initialPage }: { initialPage: AdminPage | nul
   const [status, setStatus] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [media, setMedia] = React.useState<AdminMedia[]>([]);
+
+  React.useEffect(() => {
+    let active = true;
+    void fetch("/api/admin/media", { cache: "no-store" })
+      .then((res) => (res.ok ? (res.json() as Promise<AdminMedia[]>) : Promise.resolve([])))
+      .then((items) => {
+        if (active) {
+          setMedia(items);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setMedia([]);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function addBlock(type: AdminPageBlockType) {
     setBlocks((current) => [
@@ -87,6 +114,33 @@ export function PageEditorClient({ initialPage }: { initialPage: AdminPage | nul
       updated.splice(nextIndex, 0, moved);
       return updated;
     });
+  }
+
+  function setBlockMedia(index: number, selectedMediaId: string) {
+    const selected = media.find((item) => item.id === selectedMediaId);
+    if (!selected) {
+      return;
+    }
+
+    try {
+      const current = JSON.parse(blocks[index]?.dataJson ?? "{}") as Record<string, unknown>;
+      const nextData: Record<string, unknown> = {
+        ...current,
+      };
+
+      if (blocks[index]?.type === "image") {
+        nextData.src = selected.url;
+        nextData.alt = selected.alt;
+      }
+
+      if (blocks[index]?.type === "hero") {
+        nextData.imageUrl = selected.url;
+      }
+
+      updateBlock(index, { dataJson: JSON.stringify(nextData, null, 2) });
+    } catch {
+      setError(`Block #${index + 1} has invalid JSON.`);
+    }
   }
 
   async function savePage(event: React.FormEvent<HTMLFormElement>) {
@@ -288,6 +342,20 @@ export function PageEditorClient({ initialPage }: { initialPage: AdminPage | nul
                   onChange={(e) => updateBlock(index, { dataJson: e.target.value })}
                 />
               </label>
+
+              {(block.type === "image" || block.type === "hero") && (
+                <label>
+                  Select media
+                  <select defaultValue="" onChange={(e) => setBlockMedia(index, e.target.value)}>
+                    <option value="">Choose from media library</option>
+                    {media.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.alt || item.url}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </article>
           ))}
         </div>

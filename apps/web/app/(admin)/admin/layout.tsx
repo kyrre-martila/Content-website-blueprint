@@ -9,6 +9,7 @@ const adminNavItems = [
   { href: "/admin/pages", label: "Pages" },
   { href: "/admin/navigation", label: "Navigation" },
   { href: "/admin/settings", label: "Site settings" },
+  { href: "/admin/media", label: "Media" },
   { href: "/admin/profile", label: "Profile" },
 ];
 

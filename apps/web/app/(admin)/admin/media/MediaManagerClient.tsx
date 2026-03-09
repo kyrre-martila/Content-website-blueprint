@@ -1,0 +1,127 @@
+"use client";
+
+import * as React from "react";
+import type { AdminMedia } from "../../../../lib/admin/media";
+
+export function MediaManagerClient({ initialMedia }: { initialMedia: AdminMedia[] }) {
+  const [media, setMedia] = React.useState(initialMedia);
+  const [uploading, setUploading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function refresh() {
+    const res = await fetch("/api/admin/media", { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error("Failed to refresh media");
+    }
+
+    setMedia((await res.json()) as AdminMedia[]);
+  }
+
+  async function onUpload(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const file = formData.get("file");
+    const alt = formData.get("alt");
+
+    if (!(file instanceof File) || !file.name || typeof alt !== "string" || !alt.trim()) {
+      setError("A file and alt text are required.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const res = await fetch("/api/admin/media/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        setError("Unable to upload media.");
+        return;
+      }
+
+      form.reset();
+      await refresh();
+    } catch {
+      setError("Network error while uploading media.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function onDelete(id: string) {
+    if (!window.confirm("Delete this media item?")) {
+      return;
+    }
+
+    setError(null);
+    const res = await fetch(`/api/admin/media/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setError("Unable to delete media.");
+      return;
+    }
+
+    setMedia((current) => current.filter((item) => item.id !== id));
+  }
+
+  async function onUpdateAlt(id: string, alt: string) {
+    const res = await fetch(`/api/admin/media/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ alt }),
+    });
+
+    if (!res.ok) {
+      setError("Unable to update alt text.");
+      return;
+    }
+
+    const updated = (await res.json()) as AdminMedia;
+    setMedia((current) => current.map((item) => (item.id === id ? updated : item)));
+  }
+
+  return (
+    <section className="media-manager">
+      <h1>Media library</h1>
+
+      <form onSubmit={onUpload} className="media-manager__upload">
+        <input name="file" type="file" required />
+        <input name="alt" placeholder="Alt text" required />
+        <button type="submit" disabled={uploading}>{uploading ? "Uploading..." : "Upload"}</button>
+      </form>
+
+      {error ? <p className="page-editor__error">{error}</p> : null}
+
+      <div className="media-manager__grid">
+        {media.map((item) => (
+          <article key={item.id} className="media-manager__item">
+            <div className="media-manager__preview">
+              <img src={item.url} alt={item.alt} />
+            </div>
+            <p className="media-manager__date">
+              Uploaded: {new Date(item.createdAt).toLocaleString()}
+            </p>
+            <label>
+              Alt text
+              <input
+                defaultValue={item.alt}
+                onBlur={(e) => {
+                  const nextAlt = e.target.value.trim();
+                  if (nextAlt && nextAlt !== item.alt) {
+                    void onUpdateAlt(item.id, nextAlt);
+                  }
+                }}
+              />
+            </label>
+            <button type="button" onClick={() => onDelete(item.id)}>
+              Delete
+            </button>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}

@@ -1068,3 +1068,60 @@ button:focus-visible {
   display: grid;
   gap: var(--space-s);
 }
+
+.media-manager {
+  display: grid;
+  gap: var(--space-m);
+}
+
+.media-manager__upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+  align-items: center;
+}
+
+.media-manager__upload input,
+.media-manager__upload button,
+.media-manager__item input,
+.media-manager__item button {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-s);
+  padding: var(--space-2xs) var(--space-s);
+  font: inherit;
+  background: var(--color-neutral-0);
+}
+
+.media-manager__grid {
+  display: grid;
+  gap: var(--space-s);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.media-manager__item {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-m);
+  padding: var(--space-s);
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.media-manager__preview {
+  height: 140px;
+  display: grid;
+  place-items: center;
+  background: var(--color-neutral-soft);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+}
+
+.media-manager__preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.media-manager__date {
+  font-size: var(--text-xs);
+  color: var(--color-muted, var(--color-neutral-600));
+}
