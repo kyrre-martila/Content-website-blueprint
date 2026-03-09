@@ -1020,3 +1020,51 @@ button:focus-visible {
   display: flex;
   gap: var(--space-s);
 }
+
+.admin-settings__list {
+  display: grid;
+  gap: var(--space-s);
+}
+
+.admin-settings__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+  align-items: flex-end;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-m);
+  padding: var(--space-s);
+}
+
+.admin-settings__row label,
+.admin-settings__new label {
+  display: grid;
+  gap: var(--space-2xs);
+  flex: 1;
+  min-width: 240px;
+}
+
+.admin-settings__row input,
+.admin-settings__new input {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-s);
+  padding: var(--space-2xs) var(--space-s);
+  font: inherit;
+}
+
+.admin-settings__row button,
+.admin-settings__new button {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-s);
+  background: var(--color-neutral-0);
+  padding: var(--space-2xs) var(--space-s);
+  cursor: pointer;
+}
+
+.admin-settings__new {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-m);
+  padding: var(--space-m);
+  display: grid;
+  gap: var(--space-s);
+}
