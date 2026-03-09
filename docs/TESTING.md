@@ -4,13 +4,13 @@
 
 - Unit: Jest for API/web packages (`pnpm test:unit`).
 - Contract: Validate API responses vs `packages/contracts/openapi.v1.json`.
-- Web E2E: Playwright flows under `apps/web/tests`.
+- Web E2E: Playwright flows under `apps/web/tests` for auth and core website journeys.
 
 ## Local Execution
 
 1. Install deps: `pnpm install`.
 2. Unit tests: `pnpm test:unit` (watch mode: `pnpm test:unit -- --watch`).
-3. Contract tests: `pnpm test:contracts` after regenerating SDKs.
+3. Contract tests: `pnpm test:contract` after regenerating SDKs.
 4. Web E2E: `pnpm test:e2e` (requires dev stack running).
 
 ## CI Usage
