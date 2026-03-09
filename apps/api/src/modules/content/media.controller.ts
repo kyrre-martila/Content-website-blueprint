@@ -3,13 +3,15 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Param,
+  Patch,
   Post,
   UploadedFile,
   UseInterceptors,
 } from "@nestjs/common";
 import { ApiBody, ApiConsumes, ApiProperty, ApiTags } from "@nestjs/swagger";
-import { IsString } from "class-validator";
+import { IsOptional, IsString } from "class-validator";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { MediaService } from "./media.service";
 
@@ -19,10 +21,22 @@ class UploadMediaDto {
   alt!: string;
 }
 
+class UpdateMediaDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  alt?: string;
+}
+
 @ApiTags("media")
 @Controller("media")
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
+
+  @Get()
+  async listMedia() {
+    return this.mediaService.list();
+  }
 
   @Post("upload")
   @UseInterceptors(FileInterceptor("file"))
@@ -59,5 +73,10 @@ export class MediaController {
   async deleteMedia(@Param("id") id: string) {
     await this.mediaService.delete(id);
     return { ok: true };
+  }
+
+  @Patch(":id")
+  async updateMedia(@Param("id") id: string, @Body() body: UpdateMediaDto) {
+    return this.mediaService.update(id, { alt: body.alt?.trim() || undefined });
   }
 }

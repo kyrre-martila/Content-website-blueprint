@@ -35,6 +35,14 @@ export class MediaService {
     });
   }
 
+  async list(): Promise<Media[]> {
+    return this.mediaRepository.findMany();
+  }
+
+  async update(mediaId: string, data: { alt?: string }): Promise<Media> {
+    return this.mediaRepository.update(mediaId, data);
+  }
+
   async delete(mediaId: string): Promise<void> {
     const media = await this.mediaRepository.findById(mediaId);
     if (!media) {
