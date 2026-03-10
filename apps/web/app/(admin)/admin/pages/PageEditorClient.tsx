@@ -24,6 +24,46 @@ const BLOCK_TYPES: Array<{ value: AdminPageBlockType; label: string }> = [
   { value: "news_list", label: "News list" },
 ];
 
+const BLOCK_TYPE_DESCRIPTIONS: Record<AdminPageBlockType, string> = {
+  hero: "Top-of-page section with heading, supporting text, and optional image.",
+  rich_text: "Long-form text content block.",
+  image: "Standalone image with alt text for accessibility.",
+  cta: "Call to action with message and button link.",
+  news_list: "Auto-generated list of recent news items.",
+};
+
+const BLOCK_FIELD_LABELS: Record<
+  AdminPageBlockType,
+  Record<string, string>
+> = {
+  hero: {
+    heading: "Heading",
+    text: "Supporting text",
+    imageUrl: "Image URL",
+    imageWidth: "Image width",
+    imageHeight: "Image height",
+  },
+  rich_text: {
+    body: "Body",
+  },
+  image: {
+    src: "Image URL",
+    alt: "Alt text",
+    width: "Width",
+    height: "Height",
+  },
+  cta: {
+    heading: "Heading",
+    text: "Supporting text",
+    buttonText: "Button text",
+    href: "Button URL",
+  },
+  news_list: {
+    heading: "Heading",
+    limit: "Number of articles",
+  },
+};
+
 type EditableBlock = {
   id: string;
   type: AdminPageBlockType;
@@ -113,6 +153,9 @@ export function PageEditorClient({
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [media, setMedia] = React.useState<AdminMedia[]>([]);
+  const [nextBlockType, setNextBlockType] = React.useState<AdminPageBlockType>(
+    "hero",
+  );
 
   React.useEffect(() => {
     let active = true;
@@ -168,7 +211,7 @@ export function PageEditorClient({
       }
       return next;
     });
-    setStatus("Block removed.");
+    setStatus(`Removed block #${index + 1}.`);
     setError(null);
   }
 
@@ -184,8 +227,35 @@ export function PageEditorClient({
       updated.splice(nextIndex, 0, moved);
       return updated;
     });
-    setStatus("Block order updated.");
+    setStatus(`Moved block to position ${index + direction + 1}.`);
     setError(null);
+  }
+
+  function updateBlockDataField(index: number, key: string, value: string) {
+    const block = blocks[index];
+    if (!block) {
+      return;
+    }
+
+    try {
+      const current = JSON.parse(block.dataJson) as Record<string, unknown>;
+      const existingValue = current[key];
+      const nextValue =
+        typeof existingValue === "number" && value.trim() !== ""
+          ? Number(value)
+          : value;
+      const nextData = { ...current, [key]: nextValue };
+      updateBlock(index, { dataJson: JSON.stringify(nextData, null, 2) });
+      setError(null);
+    } catch {
+      setError(
+        `Block #${index + 1} has invalid JSON. Fix it before editing guided fields.`,
+      );
+    }
+  }
+
+  function getFieldLabel(type: AdminPageBlockType, key: string): string {
+    return BLOCK_FIELD_LABELS[type][key] ?? key;
   }
 
   function setBlockMedia(index: number, selectedMediaId: string) {
@@ -326,7 +396,11 @@ export function PageEditorClient({
       }
 
       const page = (await res.json()) as AdminPage;
-      setStatus("Page saved.");
+      setStatus(
+        initialPage
+          ? "Page changes saved successfully."
+          : "Page created successfully.",
+      );
 
       if (!initialPage) {
         router.push(`/admin/pages/${page.id}`);
@@ -347,10 +421,11 @@ export function PageEditorClient({
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete page \"${initialPage.title}\"? This cannot be undone.`,
+    const confirmation = window.prompt(
+      `To permanently delete \"${initialPage.title}\", type DELETE.`,
     );
-    if (!confirmed) {
+    if (confirmation !== "DELETE") {
+      setStatus("Delete cancelled. The page is unchanged.");
       return;
     }
 
@@ -386,6 +461,21 @@ export function PageEditorClient({
     (block) => block.id === activeBlockId,
   );
   const activeBlock = activeBlockIndex >= 0 ? blocks[activeBlockIndex] : null;
+  const activeBlockData = React.useMemo(() => {
+    if (!activeBlock) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(activeBlock.dataJson) as unknown;
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [activeBlock]);
 
   return (
     <section className="page-editor">
@@ -395,8 +485,8 @@ export function PageEditorClient({
         </Link>
         <h1>{initialPage ? "Edit page" : "Create page"}</h1>
         <p className="page-editor__help">
-          Keep layout flexible with simple blocks. Edit block JSON for advanced
-          fields when needed.
+          Use guided fields for common edits, and JSON only when you need
+          advanced options.
         </p>
       </div>
 
@@ -478,21 +568,27 @@ export function PageEditorClient({
           <div className="page-editor__blocks-header">
             <h2>Page blocks ({blocks.length})</h2>
             <div className="page-editor__block-type-buttons">
-              {BLOCK_TYPES.map((type) => (
-                <button
-                  key={type.value}
-                  type="button"
-                  onClick={() => addBlock(type.value)}
-                >
-                  + {type.label}
-                </button>
-              ))}
+              <select
+                value={nextBlockType}
+                onChange={(e) =>
+                  setNextBlockType(e.target.value as AdminPageBlockType)
+                }
+              >
+                {BLOCK_TYPES.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={() => addBlock(nextBlockType)}>
+                Add block
+              </button>
             </div>
           </div>
 
           <p className="page-editor__help">
-            Reorder blocks with arrows. Select a block from the list to edit its
-            type and JSON payload.
+            Blocks render from top to bottom in this order. Select a block to
+            edit guided fields, block type, or raw JSON.
           </p>
 
           <div className="page-editor__block-layout">
@@ -518,8 +614,9 @@ export function PageEditorClient({
                       onClick={() => setActiveBlockId(block.id)}
                     >
                       <strong>
-                        #{index + 1} {getBlockTypeLabel(block.type)}
+                        Position {index + 1} of {blocks.length}
                       </strong>
+                      <small>{getBlockTypeLabel(block.type)}</small>
                       <span>{isActive ? "Editing" : "Select"}</span>
                     </button>
                     <div className="page-editor__block-toolbar">
@@ -542,7 +639,7 @@ export function PageEditorClient({
                           type="button"
                           onClick={() => removeBlock(index)}
                         >
-                          Delete
+                          Remove block
                         </button>
                       </div>
                     </div>
@@ -557,6 +654,37 @@ export function PageEditorClient({
                   Editing block #{activeBlockIndex + 1}:{" "}
                   {getBlockTypeLabel(activeBlock.type)}
                 </h3>
+                <p className="page-editor__field-help">
+                  {BLOCK_TYPE_DESCRIPTIONS[activeBlock.type]}
+                </p>
+
+                {activeBlockData && (
+                  <fieldset className="page-editor__guided-fields">
+                    <legend>Guided fields</legend>
+                    {Object.entries(activeBlockData).map(([key, value]) => (
+                      <label key={key}>
+                        {getFieldLabel(activeBlock.type, key)}
+                        <input
+                          value={String(value ?? "")}
+                          onChange={(e) =>
+                            updateBlockDataField(
+                              activeBlockIndex,
+                              key,
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                    ))}
+                  </fieldset>
+                )}
+
+                {!activeBlockData && (
+                  <p className="page-editor__error">
+                    Guided fields are unavailable until this block has valid
+                    JSON object data.
+                  </p>
+                )}
 
                 <label>
                   Type
@@ -580,7 +708,7 @@ export function PageEditorClient({
                 </label>
 
                 <label>
-                  Data (JSON)
+                  Advanced data (JSON)
                   <textarea
                     rows={14}
                     value={activeBlock.dataJson}
@@ -621,11 +749,15 @@ export function PageEditorClient({
 
         <div className="page-editor__actions">
           <button type="submit" disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save page"}
+            {isSaving
+              ? "Saving..."
+              : initialPage
+                ? "Save changes"
+                : "Create page"}
           </button>
           {initialPage && (
             <button type="button" onClick={deletePage} disabled={isDeleting}>
-              {isDeleting ? "Deleting..." : "Delete page"}
+              {isDeleting ? "Deleting..." : "Delete permanently"}
             </button>
           )}
         </div>
