@@ -187,6 +187,8 @@ model Media {
   id               String   @id @default(cuid())
   url              String
   alt              String
+  width            Int?
+  height           Int?
   mimeType         String?
   sizeBytes        Int?
   originalFilename String?

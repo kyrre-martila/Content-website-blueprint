@@ -9,7 +9,13 @@ import type {
 import { getNewsListing } from "../../../../../lib/content";
 
 type RichTextData = { paragraphs: string[] };
-type ImageData = { src: string; alt: string; caption?: string };
+type ImageData = {
+  src: string;
+  alt?: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+};
 type CtaData = {
   title?: string;
   description?: string;
@@ -27,13 +33,19 @@ type BlockSchema<TData> = {
 type BlockDefinition<TData> = {
   type: ContentBlockType;
   schema: BlockSchema<TData>;
-  renderer: (data: TData) => BlockRenderResult;
+  renderer: (
+    data: TData,
+    context: { fallbackAltText: string },
+  ) => BlockRenderResult;
 };
 
 type RegisteredBlock = {
   type: ContentBlockType;
   schema: BlockSchema<unknown>;
-  renderer: (data: unknown) => BlockRenderResult;
+  renderer: (
+    data: unknown,
+    context: { fallbackAltText: string },
+  ) => BlockRenderResult;
 };
 
 function HeroBlock({ data }: { data: HeroContent }) {
@@ -72,10 +84,23 @@ function RichTextBlock({ data }: { data: RichTextData }) {
   );
 }
 
-function ImageBlock({ data }: { data: ImageData }) {
+function ImageBlock({
+  data,
+  fallbackAltText,
+}: {
+  data: ImageData;
+  fallbackAltText: string;
+}) {
   return (
     <figure className="public-block public-block--image section">
-      <img src={data.src} alt={data.alt} className="public-block__image" />
+      <img
+        src={data.src}
+        alt={(data.alt && data.alt.trim()) || fallbackAltText || "Image"}
+        className="public-block__image"
+        width={data.width}
+        height={data.height}
+        loading="lazy"
+      />
       {data.caption ? (
         <figcaption className="public-block__caption">
           {data.caption}
@@ -194,7 +219,7 @@ const richTextSchema: BlockSchema<RichTextData> = {
 const imageSchema: BlockSchema<ImageData> = {
   validate(data) {
     const record = asRecord(data);
-    if (!isString(record.src) || !isString(record.alt)) {
+    if (!isString(record.src)) {
       return { valid: false };
     }
 
@@ -202,8 +227,10 @@ const imageSchema: BlockSchema<ImageData> = {
       valid: true,
       data: {
         src: record.src,
-        alt: record.alt,
+        alt: isString(record.alt) ? record.alt : undefined,
         caption: isString(record.caption) ? record.caption : undefined,
+        width: typeof record.width === "number" ? record.width : undefined,
+        height: typeof record.height === "number" ? record.height : undefined,
       },
     };
   },
@@ -265,7 +292,9 @@ const richTextBlock: BlockDefinition<RichTextData> = {
 const imageBlock: BlockDefinition<ImageData> = {
   type: "image",
   schema: imageSchema,
-  renderer: (data) => <ImageBlock data={data} />,
+  renderer: (data, context) => (
+    <ImageBlock data={data} fallbackAltText={context.fallbackAltText} />
+  ),
 };
 
 const ctaBlock: BlockDefinition<CtaData> = {
@@ -302,7 +331,7 @@ function registerBlock<TData>(
           | { valid: true; data: unknown }
           | { valid: false },
     },
-    renderer: (data) => definition.renderer(data as TData),
+    renderer: (data, context) => definition.renderer(data as TData, context),
   };
 }
 

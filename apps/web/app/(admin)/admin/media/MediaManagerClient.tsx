@@ -39,7 +39,8 @@ export function MediaManagerClient({ initialMedia }: { initialMedia: AdminMedia[
       });
 
       if (!res.ok) {
-        setError("Unable to upload media.");
+        const data = await res.json().catch(() => null);
+        setError((data && (data.message || data.error)) || "Unable to upload media.");
         return;
       }
 
@@ -75,7 +76,8 @@ export function MediaManagerClient({ initialMedia }: { initialMedia: AdminMedia[
     });
 
     if (!res.ok) {
-      setError("Unable to update alt text.");
+      const data = await res.json().catch(() => null);
+      setError((data && (data.message || data.error)) || "Unable to update alt text.");
       return;
     }
 
@@ -99,18 +101,22 @@ export function MediaManagerClient({ initialMedia }: { initialMedia: AdminMedia[
         {media.map((item) => (
           <article key={item.id} className="media-manager__item">
             <div className="media-manager__preview">
-              <img src={item.url} alt={item.alt} />
+              <img src={item.url} alt={item.alt || "Image"} loading="lazy" width={item.width ?? undefined} height={item.height ?? undefined} />
             </div>
             <p className="media-manager__date">
               Uploaded: {new Date(item.createdAt).toLocaleString()}
             </p>
+            <p className="media-manager__date">
+              {item.mimeType || "unknown type"} • {item.width ?? "?"}×{item.height ?? "?"} • {item.sizeBytes ?? 0} bytes
+            </p>
             <label>
-              Alt text
+              Alt text {item.isUsed ? "*" : ""}
               <input
                 defaultValue={item.alt}
+                required={item.isUsed}
                 onBlur={(e) => {
                   const nextAlt = e.target.value.trim();
-                  if (nextAlt && nextAlt !== item.alt) {
+                  if (nextAlt !== item.alt) {
                     void onUpdateAlt(item.id, nextAlt);
                   }
                 }}

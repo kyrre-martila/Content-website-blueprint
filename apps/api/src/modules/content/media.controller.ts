@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   Patch,
   Post,
@@ -13,6 +14,11 @@ import {
 import { ApiBody, ApiConsumes, ApiProperty, ApiTags } from "@nestjs/swagger";
 import { IsOptional, IsString } from "class-validator";
 import { FileInterceptor } from "@nestjs/platform-express";
+import type {
+  ContentItemsRepository,
+  ContentTypesRepository,
+  PagesRepository,
+} from "@org/domain";
 import { MediaService } from "./media.service";
 
 class UploadMediaDto {
@@ -31,11 +37,27 @@ class UpdateMediaDto {
 @ApiTags("media")
 @Controller("media")
 export class MediaController {
-  constructor(private readonly mediaService: MediaService) {}
+  constructor(
+    private readonly mediaService: MediaService,
+    @Inject("PagesRepository")
+    private readonly pages: PagesRepository,
+    @Inject("ContentTypesRepository")
+    private readonly contentTypes: ContentTypesRepository,
+    @Inject("ContentItemsRepository")
+    private readonly contentItems: ContentItemsRepository,
+  ) {}
 
   @Get()
   async listMedia() {
-    return this.mediaService.list();
+    const [media, usedUrls] = await Promise.all([
+      this.mediaService.list(),
+      this.getUsedMediaUrls(),
+    ]);
+
+    return media.map((item) => ({
+      ...item,
+      isUsed: usedUrls.has(item.url),
+    }));
   }
 
   @Post("upload")
@@ -61,11 +83,16 @@ export class MediaController {
       throw new BadRequestException("File is required");
     }
 
+    const alt = body.alt.trim();
+    if (!alt) {
+      throw new BadRequestException("Alt text is required.");
+    }
+
     return this.mediaService.upload({
       fileBuffer: file.buffer,
       fileName: file.originalname,
       mimeType: file.mimetype,
-      alt: body.alt,
+      alt,
     });
   }
 
@@ -77,6 +104,66 @@ export class MediaController {
 
   @Patch(":id")
   async updateMedia(@Param("id") id: string, @Body() body: UpdateMediaDto) {
-    return this.mediaService.update(id, { alt: body.alt?.trim() || undefined });
+    const nextAlt = body.alt === undefined ? undefined : body.alt.trim();
+
+    if (nextAlt !== undefined && !nextAlt) {
+      const media = await this.mediaService.list();
+      const existing = media.find((entry) => entry.id === id);
+      if (!existing) {
+        throw new BadRequestException("Media item not found.");
+      }
+
+      const usedUrls = await this.getUsedMediaUrls();
+      if (usedUrls.has(existing.url)) {
+        throw new BadRequestException(
+          "Alt text is required for media used in page blocks or content items.",
+        );
+      }
+    }
+
+    return this.mediaService.update(id, { alt: nextAlt });
+  }
+
+  private async getUsedMediaUrls(): Promise<Set<string>> {
+    const urls = new Set<string>();
+
+    const pages = await this.pages.findMany();
+    for (const page of pages) {
+      for (const block of page.blocks) {
+        if (block.type === "image") {
+          const src = block.data.src;
+          if (typeof src === "string" && src.trim()) {
+            urls.add(src.trim());
+          }
+        }
+
+        if (block.type === "hero") {
+          const imageUrl = block.data.imageUrl;
+          if (typeof imageUrl === "string" && imageUrl.trim()) {
+            urls.add(imageUrl.trim());
+          }
+        }
+      }
+    }
+
+    const contentTypes = await this.contentTypes.findMany();
+    for (const contentType of contentTypes) {
+      const imageFields = contentType.fields.filter((field: { type: string }) => field.type === "image");
+      if (imageFields.length === 0) {
+        continue;
+      }
+
+      const items = await this.contentItems.findManyByContentTypeId(contentType.id);
+      for (const item of items) {
+        for (const field of imageFields) {
+          const value = item.data[field.key];
+          if (typeof value === "string" && value.trim()) {
+            urls.add(value.trim());
+          }
+        }
+      }
+    }
+
+    return urls;
   }
 }

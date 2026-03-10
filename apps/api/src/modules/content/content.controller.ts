@@ -36,6 +36,12 @@ import type {
 } from "@org/domain";
 import { MediaService } from "./media.service";
 
+
+
+type MediaUsageContext =
+  | { kind: "page"; pageTitle: string; blockIndex: number; blockType: string }
+  | { kind: "content"; contentType: string; itemTitle: string; fieldKey: string };
+
 const PAGE_BLOCK_TYPES = [
   "hero",
   "rich_text",
@@ -391,6 +397,18 @@ class CreateMediaDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  width?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  height?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
   mimeType?: string;
 
@@ -421,6 +439,18 @@ class UpdateMediaDto {
   @IsOptional()
   @IsString()
   alt?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  width?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  height?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -488,12 +518,21 @@ export class ContentController {
   }
 
   @Post("pages")
-  createPage(@Body() body: CreatePageDto) {
+  async createPage(@Body() body: CreatePageDto) {
+    await this.validatePageBlocksMediaAlt(body.title, body.blocks);
     return this.pages.create({ ...body, noIndex: body.noIndex ?? false });
   }
 
   @Patch("pages/:id")
-  updatePage(@Param("id") id: string, @Body() body: UpdatePageDto) {
+  async updatePage(@Param("id") id: string, @Body() body: UpdatePageDto) {
+    if (body.blocks) {
+      const page = await this.pages.findById(id);
+      if (!page) {
+        throw new BadRequestException("Page not found.");
+      }
+      await this.validatePageBlocksMediaAlt(body.title ?? page.title, body.blocks);
+    }
+
     return this.pages.update(id, body);
   }
 
@@ -583,10 +622,127 @@ export class ContentController {
     return result.entity;
   }
 
-  private validateContentItemData(
+  private extractPageBlockMediaUrls(block: {
+    type: string;
+    data: Record<string, unknown>;
+  }): string[] {
+    if (block.type === "image") {
+      const src = block.data.src;
+      return typeof src === "string" && src.trim() ? [src.trim()] : [];
+    }
+
+    if (block.type === "hero") {
+      const imageUrl = block.data.imageUrl;
+      return typeof imageUrl === "string" && imageUrl.trim() ? [imageUrl.trim()] : [];
+    }
+
+    return [];
+  }
+
+  private async getMediaByUrlMap(): Promise<Map<string, { id: string; alt: string }>> {
+    const media = await this.media.findMany();
+    return new Map(media.map((item) => [item.url, { id: item.id, alt: item.alt }]));
+  }
+
+  private async validatePageBlocksMediaAlt(
+    pageTitle: string,
+    blocks: Array<{ type: string; data: Record<string, unknown> }>,
+  ): Promise<void> {
+    const mediaByUrl = await this.getMediaByUrlMap();
+
+    for (const [index, block] of blocks.entries()) {
+      const urls = this.extractPageBlockMediaUrls(block);
+      for (const url of urls) {
+        const matched = mediaByUrl.get(url);
+        if (matched && !matched.alt.trim()) {
+          throw new BadRequestException(
+            `Page block #${index + 1} (${block.type}) references media without alt text. Update that media item's alt text before saving.`,
+          );
+        }
+      }
+    }
+  }
+
+  private async getReferencedMediaUsage(): Promise<Map<string, MediaUsageContext[]>> {
+    const usage = new Map<string, MediaUsageContext[]>();
+
+    const pages = await this.pages.findMany();
+    for (const page of pages) {
+      for (const [index, block] of page.blocks.entries()) {
+        const urls = this.extractPageBlockMediaUrls({
+          type: block.type,
+          data: block.data,
+        });
+
+        for (const url of urls) {
+          const entries = usage.get(url) ?? [];
+          entries.push({
+            kind: "page",
+            pageTitle: page.title,
+            blockIndex: index + 1,
+            blockType: block.type,
+          });
+          usage.set(url, entries);
+        }
+      }
+    }
+
+    const contentTypes = await this.contentTypes.findMany();
+    for (const contentType of contentTypes) {
+      const imageFields = contentType.fields.filter((field: ContentFieldDefinition) => field.type === "image");
+      if (imageFields.length === 0) {
+        continue;
+      }
+
+      const items = await this.contentItems.findManyByContentTypeId(contentType.id);
+      for (const item of items) {
+        for (const field of imageFields) {
+          const value = item.data[field.key];
+          if (typeof value !== "string" || !value.trim()) {
+            continue;
+          }
+
+          const entries = usage.get(value.trim()) ?? [];
+          entries.push({
+            kind: "content",
+            contentType: contentType.name,
+            itemTitle: item.title,
+            fieldKey: field.key,
+          });
+          usage.set(value.trim(), entries);
+        }
+      }
+    }
+
+    return usage;
+  }
+
+  private async validateMediaAltBeforeUpdate(mediaId: string, nextAlt: string | undefined) {
+    if (nextAlt === undefined || nextAlt.trim()) {
+      return;
+    }
+
+    const mediaItem = await this.media.findById(mediaId);
+    if (!mediaItem) {
+      throw new BadRequestException("Media item not found.");
+    }
+
+    const usage = await this.getReferencedMediaUsage();
+    if (!usage.has(mediaItem.url)) {
+      return;
+    }
+
+    throw new BadRequestException(
+      "Alt text is required for media used in page blocks or content items.",
+    );
+  }
+
+  private async validateContentItemData(
     fields: ContentFieldDefinition[],
     data: Record<string, unknown>,
   ) {
+    const mediaByUrl = await this.getMediaByUrlMap();
+
     for (const field of fields) {
       const value = data[field.key];
       if (
@@ -598,6 +754,15 @@ export class ContentController {
 
       if (value === undefined || value === null || value === "") {
         continue;
+      }
+
+      if (field.type === "image" && typeof value === "string") {
+        const matchedMedia = mediaByUrl.get(value.trim());
+        if (matchedMedia && !matchedMedia.alt.trim()) {
+          throw new BadRequestException(
+            `Field ${field.key} references media without alt text. Update that media item before saving.`,
+          );
+        }
       }
 
       if (field.type === "boolean" && typeof value !== "boolean") {
@@ -617,7 +782,7 @@ export class ContentController {
       throw new BadRequestException("Invalid content type.");
     }
 
-    this.validateContentItemData(contentType.fields, body.data);
+    await this.validateContentItemData(contentType.fields, body.data);
     return this.contentItems.create({
       ...body,
       noIndex: body.noIndex ?? false,
@@ -641,7 +806,7 @@ export class ContentController {
     }
 
     const data = body.data ?? existing.data;
-    this.validateContentItemData(contentType.fields, data);
+    await this.validateContentItemData(contentType.fields, data);
     return this.contentItems.update(id, body);
   }
 
@@ -697,8 +862,16 @@ export class ContentController {
   }
 
   @Get("media")
-  listMedia() {
-    return this.media.findMany();
+  async listMedia() {
+    const [mediaItems, usage] = await Promise.all([
+      this.media.findMany(),
+      this.getReferencedMediaUsage(),
+    ]);
+
+    return mediaItems.map((item) => ({
+      ...item,
+      isUsed: usage.has(item.url),
+    }));
   }
 
   @Get("media/:id")
@@ -710,6 +883,8 @@ export class ContentController {
   createMedia(@Body() body: CreateMediaDto) {
     return this.media.create({
       ...body,
+      width: body.width ?? null,
+      height: body.height ?? null,
       mimeType: body.mimeType ?? null,
       sizeBytes: body.sizeBytes ?? null,
       originalFilename: body.originalFilename ?? null,
@@ -718,7 +893,8 @@ export class ContentController {
   }
 
   @Patch("media/:id")
-  updateMedia(@Param("id") id: string, @Body() body: UpdateMediaDto) {
+  async updateMedia(@Param("id") id: string, @Body() body: UpdateMediaDto) {
+    await this.validateMediaAltBeforeUpdate(id, body.alt);
     return this.media.update(id, body);
   }
 

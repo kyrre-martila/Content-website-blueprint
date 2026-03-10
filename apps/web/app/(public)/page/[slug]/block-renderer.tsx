@@ -1,7 +1,10 @@
 import type { ContentBlock } from "../../../../lib/content";
 import { getBlockDefinition } from "./blocks/block-registry";
 
-export async function renderBlock(block: ContentBlock) {
+export async function renderBlock(
+  block: ContentBlock,
+  options?: { pageTitle?: string },
+) {
   const registryEntry = getBlockDefinition(block.type);
 
   if (!registryEntry) {
@@ -15,5 +18,7 @@ export async function renderBlock(block: ContentBlock) {
     return null;
   }
 
-  return registryEntry.renderer(parsed.data);
+  return registryEntry.renderer(parsed.data, {
+    fallbackAltText: options?.pageTitle?.trim() || "Image",
+  });
 }
