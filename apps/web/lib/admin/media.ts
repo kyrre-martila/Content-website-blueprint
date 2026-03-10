@@ -4,11 +4,14 @@ export type AdminMedia = {
   id: string;
   url: string;
   alt: string;
+  width: number | null;
+  height: number | null;
   mimeType: string | null;
   sizeBytes: number | null;
   originalFilename: string | null;
   storageKey: string | null;
   createdAt: string;
+  isUsed?: boolean;
 };
 
 function getApiBase() {

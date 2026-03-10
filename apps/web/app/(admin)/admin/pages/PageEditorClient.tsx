@@ -12,6 +12,8 @@ type AdminMedia = {
   id: string;
   url: string;
   alt: string;
+  width: number | null;
+  height: number | null;
 };
 
 const BLOCK_TYPES: Array<{ value: AdminPageBlockType; label: string }> = [
@@ -204,10 +206,22 @@ export function PageEditorClient({
       if (blocks[index]?.type === "image") {
         nextData.src = selected.url;
         nextData.alt = selected.alt;
+        if (selected.width) {
+          nextData.width = selected.width;
+        }
+        if (selected.height) {
+          nextData.height = selected.height;
+        }
       }
 
       if (blocks[index]?.type === "hero") {
         nextData.imageUrl = selected.url;
+        if (selected.width) {
+          nextData.imageWidth = selected.width;
+        }
+        if (selected.height) {
+          nextData.imageHeight = selected.height;
+        }
       }
 
       updateBlock(index, { dataJson: JSON.stringify(nextData, null, 2) });

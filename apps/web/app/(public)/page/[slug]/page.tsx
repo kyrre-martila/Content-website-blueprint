@@ -90,7 +90,7 @@ export default async function GenericPage({
   const renderedBlocks = await Promise.all(
     content.blocks.map(async (block) => ({
       id: block.id,
-      node: await renderBlock(block),
+      node: await renderBlock(block, { pageTitle: content.title }),
     })),
   );
 

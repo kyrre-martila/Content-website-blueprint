@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { DomainError } from "@org/domain";
 import type {
   ContentItem,
@@ -39,7 +38,7 @@ function mapPageBlock(block: {
   id: string;
   pageId: string;
   type: string;
-  data: Prisma.JsonValue;
+  data: unknown;
   order: number;
   createdAt: Date;
   updatedAt: Date;
@@ -70,7 +69,7 @@ function mapPage(page: {
     id: string;
     pageId: string;
     type: string;
-    data: Prisma.JsonValue;
+    data: unknown;
     order: number;
     createdAt: Date;
     updatedAt: Date;
@@ -85,7 +84,7 @@ function mapPage(page: {
 function mapInputBlocks(blocks: PageBlock[]) {
   return blocks.map((block) => ({
     type: block.type,
-    data: block.data as Prisma.InputJsonValue,
+    data: block.data as any,
     order: block.order,
   }));
 }
@@ -106,7 +105,7 @@ function toContentFieldType(value: unknown): ContentFieldType {
     : "text";
 }
 
-function mapContentFields(fields: Prisma.JsonValue): ContentFieldDefinition[] {
+function mapContentFields(fields: unknown): ContentFieldDefinition[] {
   if (!Array.isArray(fields)) {
     return [];
   }
@@ -140,7 +139,7 @@ function mapContentType(type: {
   name: string;
   slug: string;
   description: string;
-  fields: Prisma.JsonValue;
+  fields: unknown;
   createdAt: Date;
   updatedAt: Date;
 }): ContentType {
@@ -160,7 +159,7 @@ function mapContentItem(item: {
   seoImage: string | null;
   canonicalUrl: string | null;
   noIndex: boolean;
-  data: Prisma.JsonValue;
+  data: unknown;
   published: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -178,6 +177,8 @@ function mapMedia(media: {
   id: string;
   url: string;
   alt: string;
+  width: number | null;
+  height: number | null;
   mimeType: string | null;
   sizeBytes: number | null;
   originalFilename: string | null;
@@ -273,7 +274,7 @@ export class PagesPrismaRepository implements PagesRepository {
   ): Promise<Page> {
     const { blocks, ...pageData } = data;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       const existing = await tx.page.findUnique({ where: { id } });
       if (!existing) {
         throw new DomainError("VALIDATION_ERROR", "Page not found.");
@@ -355,7 +356,7 @@ export class PageBlocksPrismaRepository implements PageBlocksRepository {
     const block = await this.prisma.pageBlock.create({
       data: {
         ...data,
-        data: data.data as Prisma.InputJsonValue,
+        data: data.data as any,
       },
     });
     return mapPageBlock(block);
@@ -369,7 +370,7 @@ export class PageBlocksPrismaRepository implements PageBlocksRepository {
       where: { id },
       data: {
         ...data,
-        data: data.data ? (data.data as Prisma.InputJsonValue) : undefined,
+        data: data.data ? (data.data as any) : undefined,
       },
     });
     return mapPageBlock(block);
@@ -406,7 +407,7 @@ export class ContentTypesPrismaRepository implements ContentTypesRepository {
     const type = await this.prisma.contentType.create({
       data: {
         ...data,
-        fields: data.fields as Prisma.InputJsonValue,
+        fields: data.fields as any,
       },
     });
     return mapContentType(type);
@@ -421,7 +422,7 @@ export class ContentTypesPrismaRepository implements ContentTypesRepository {
       data: {
         ...data,
         fields: data.fields
-          ? (data.fields as Prisma.InputJsonValue)
+          ? (data.fields as any)
           : undefined,
       },
     });
@@ -511,7 +512,7 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
     const item = await this.prisma.contentItem.create({
       data: {
         ...data,
-        data: data.data as Prisma.InputJsonValue,
+        data: data.data as any,
       },
     });
     return mapContentItem(item);
@@ -521,7 +522,7 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
     id: string,
     data: Partial<Omit<ContentItem, "id" | "createdAt" | "updatedAt">>,
   ): Promise<ContentItem> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       const existing = await tx.contentItem.findUnique({ where: { id } });
       if (!existing) {
         throw new DomainError("VALIDATION_ERROR", "Content item not found.");
@@ -579,7 +580,7 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
         where: { id },
         data: {
           ...data,
-          data: data.data ? (data.data as Prisma.InputJsonValue) : undefined,
+          data: data.data ? (data.data as any) : undefined,
         },
       });
       return mapContentItem(item);
