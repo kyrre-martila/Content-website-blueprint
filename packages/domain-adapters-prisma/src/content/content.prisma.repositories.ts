@@ -135,7 +135,8 @@ function mapContentFields(fields: unknown): ContentFieldDefinition[] {
         return null;
       }
 
-      const labelRaw = typeof record.label === "string" ? record.label.trim() : "";
+      const labelRaw =
+        typeof record.label === "string" ? record.label.trim() : "";
       const descriptionRaw =
         typeof record.description === "string" ? record.description.trim() : "";
       const placeholderRaw =
@@ -656,12 +657,16 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
     };
   }
 
-  private async resolveReferences(items: ContentItem[]): Promise<ContentItem[]> {
+  private async resolveReferences(
+    items: ContentItem[],
+  ): Promise<ContentItem[]> {
     if (items.length === 0) {
       return items;
     }
 
-    const contentTypeIds = [...new Set(items.map((item) => item.contentTypeId))];
+    const contentTypeIds = [
+      ...new Set(items.map((item) => item.contentTypeId)),
+    ];
     const contentTypes = await this.prisma.contentType.findMany({
       where: { id: { in: contentTypeIds } },
       select: { id: true, fields: true },
@@ -723,7 +728,9 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
       : [];
 
     const media = mediaIds.size
-      ? await this.prisma.media.findMany({ where: { id: { in: [...mediaIds] } } })
+      ? await this.prisma.media.findMany({
+          where: { id: { in: [...mediaIds] } },
+        })
       : [];
 
     const contentItems = contentItemIds.size
@@ -744,7 +751,8 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
 
     return items.map((item) => {
       const fields = fieldsByTypeId.get(item.contentTypeId) ?? [];
-      const resolvedReferences: NonNullable<ContentItem["resolvedReferences"]> = {};
+      const resolvedReferences: NonNullable<ContentItem["resolvedReferences"]> =
+        {};
 
       for (const field of fields) {
         const rawValue = item.data[field.key];
@@ -964,6 +972,18 @@ export class TermsPrismaRepository implements TermsRepository {
     const terms = await this.prisma.term.findMany({
       where: { taxonomyId },
       orderBy: [{ createdAt: "desc" }],
+    });
+    return terms.map(mapTerm);
+  }
+
+  async findManyByIds(ids: string[]): Promise<Term[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const terms = await this.prisma.term.findMany({
+      where: { id: { in: ids } },
+      orderBy: { createdAt: "desc" },
     });
     return terms.map(mapTerm);
   }

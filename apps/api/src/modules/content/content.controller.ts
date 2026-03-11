@@ -45,7 +45,10 @@ import type {
 } from "@org/domain";
 import { MediaService } from "./media.service";
 import { AuthService } from "../auth/auth.service";
-import { requireMinimumRole, requireSuperAdmin } from "../../common/auth/admin-access";
+import {
+  requireMinimumRole,
+  requireSuperAdmin,
+} from "../../common/auth/admin-access";
 import type { Request } from "express";
 
 type MediaUsageContext =
@@ -722,7 +725,9 @@ export class ContentController {
   async createPage(@Req() req: Request, @Body() body: CreatePageDto) {
     const role = await requireMinimumRole(req, this.auth, "editor");
     if (body.templateKey !== undefined && role !== "super_admin") {
-      throw new ForbiddenException("Access denied: only super_admin can modify page templates.");
+      throw new ForbiddenException(
+        "Access denied: only super_admin can modify page templates.",
+      );
     }
     await this.validatePageBlocksMediaAlt(body.title, body.blocks);
     return this.pages.create({
@@ -740,7 +745,9 @@ export class ContentController {
   ) {
     const role = await requireMinimumRole(req, this.auth, "editor");
     if (body.templateKey !== undefined && role !== "super_admin") {
-      throw new ForbiddenException("Access denied: only super_admin can modify page templates.");
+      throw new ForbiddenException(
+        "Access denied: only super_admin can modify page templates.",
+      );
     }
     if (body.blocks) {
       const page = await this.pages.findById(id);
@@ -774,7 +781,10 @@ export class ContentController {
   }
 
   @Post("types")
-  async createContentType(@Req() req: Request, @Body() body: CreateContentTypeDto) {
+  async createContentType(
+    @Req() req: Request,
+    @Body() body: CreateContentTypeDto,
+  ) {
     await requireSuperAdmin(req, this.auth);
     await this.validateContentTypeFields(body.fields);
     return this.contentTypes.create({
@@ -1092,7 +1102,9 @@ export class ContentController {
       }
 
       if (field.relation.targetType === "contentType") {
-        const target = await this.contentTypes.findBySlug(field.relation.targetSlug!);
+        const target = await this.contentTypes.findBySlug(
+          field.relation.targetSlug!,
+        );
         if (!target) {
           throw new BadRequestException(
             `Field ${field.key} references unknown content type slug: ${field.relation.targetSlug}.`,
@@ -1123,7 +1135,9 @@ export class ContentController {
 
       if (field.type === "boolean") {
         if (typeof value !== "boolean") {
-          throw new BadRequestException(`Field ${field.key} must be a boolean.`);
+          throw new BadRequestException(
+            `Field ${field.key} must be a boolean.`,
+          );
         }
         continue;
       }
@@ -1146,7 +1160,9 @@ export class ContentController {
       if (field.type === "media") {
         const media = await this.media.findById(normalized);
         if (!media) {
-          throw new BadRequestException(`Field ${field.key} references missing media.`);
+          throw new BadRequestException(
+            `Field ${field.key} references missing media.`,
+          );
         }
         if (!media.alt.trim()) {
           throw new BadRequestException(
@@ -1174,14 +1190,18 @@ export class ContentController {
         if (field.relation.targetType === "page") {
           const page = await this.pages.findById(normalized);
           if (!page) {
-            throw new BadRequestException(`Field ${field.key} references missing page.`);
+            throw new BadRequestException(
+              `Field ${field.key} references missing page.`,
+            );
           }
         }
 
         if (field.relation.targetType === "media") {
           const media = await this.media.findById(normalized);
           if (!media) {
-            throw new BadRequestException(`Field ${field.key} references missing media.`);
+            throw new BadRequestException(
+              `Field ${field.key} references missing media.`,
+            );
           }
         }
 
@@ -1193,7 +1213,8 @@ export class ContentController {
             );
           }
 
-          const targetContentType = await this.contentTypes.findBySlug(targetSlug);
+          const targetContentType =
+            await this.contentTypes.findBySlug(targetSlug);
           if (!targetContentType) {
             throw new BadRequestException(
               `Field ${field.key} references unknown content type slug: ${targetSlug}.`,
@@ -1201,7 +1222,10 @@ export class ContentController {
           }
 
           const referencedItem = await this.contentItems.findById(normalized);
-          if (!referencedItem || referencedItem.contentTypeId !== targetContentType.id) {
+          if (
+            !referencedItem ||
+            referencedItem.contentTypeId !== targetContentType.id
+          ) {
             throw new BadRequestException(
               `Field ${field.key} must reference an item from content type: ${targetSlug}.`,
             );
@@ -1212,7 +1236,10 @@ export class ContentController {
   }
 
   @Post("items")
-  async createContentItem(@Req() req: Request, @Body() body: CreateContentItemDto) {
+  async createContentItem(
+    @Req() req: Request,
+    @Body() body: CreateContentItemDto,
+  ) {
     await requireMinimumRole(req, this.auth, "editor");
     const contentType = await this.contentTypes.findById(body.contentTypeId);
     if (!contentType) {
@@ -1380,8 +1407,17 @@ export class ContentController {
   }
 
   @Get("items/:id/terms")
-  listContentItemTerms(@Param("id") id: string) {
-    return this.contentItemTerms.findManyByContentItemId(id);
+  async listContentItemTerms(@Param("id") id: string) {
+    const assignments = await this.contentItemTerms.findManyByContentItemId(id);
+    const terms = await this.terms.findManyByIds(
+      assignments.map((entry) => entry.termId),
+    );
+    const termsById = new Map(terms.map((term) => [term.id, term]));
+
+    return assignments.flatMap((entry) => {
+      const term = termsById.get(entry.termId);
+      return term ? [term] : [];
+    });
   }
 
   @Put("items/:id/terms")
@@ -1416,7 +1452,10 @@ export class ContentController {
   }
 
   @Post("navigation-items")
-  async createNavigationItem(@Req() req: Request, @Body() body: CreateNavigationItemDto) {
+  async createNavigationItem(
+    @Req() req: Request,
+    @Body() body: CreateNavigationItemDto,
+  ) {
     await requireMinimumRole(req, this.auth, "admin");
     return this.navigation.create({ ...body, parentId: body.parentId ?? null });
   }
