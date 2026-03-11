@@ -7,6 +7,7 @@ export const DEMO_NEWS_ITEMS: NewsItem[] = [
     summary:
       "Moren ipsum dolor sit amet, consectetuer adipiscing elit. Moren donec quam felis, ultricies nec, pellentesque eu.",
     publishedAt: "2026-01-04",
+    templateKey: "news",
     canonicalUrl: null,
     noIndex: false,
   },
@@ -16,6 +17,7 @@ export const DEMO_NEWS_ITEMS: NewsItem[] = [
     summary:
       "Moren ipsum aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.",
     publishedAt: "2025-12-19",
+    templateKey: "news",
     canonicalUrl: null,
     noIndex: false,
   },
@@ -25,6 +27,7 @@ export const DEMO_NEWS_ITEMS: NewsItem[] = [
     summary:
       "Moren ipsum donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut.",
     publishedAt: "2025-11-28",
+    templateKey: "news",
     canonicalUrl: null,
     noIndex: false,
   },
@@ -34,6 +37,7 @@ export const DEMO_PAGES: ContentPage[] = [
   {
     slug: "home",
     title: "Home",
+    templateKey: "index",
     seoTitle: null,
     seoDescription: null,
     seoImage: null,
@@ -101,6 +105,7 @@ export const DEMO_PAGES: ContentPage[] = [
   {
     slug: "about",
     title: "About",
+    templateKey: "landing",
     seoTitle: null,
     seoDescription: null,
     seoImage: null,
@@ -132,6 +137,7 @@ export const DEMO_PAGES: ContentPage[] = [
   {
     slug: "services",
     title: "Services",
+    templateKey: "service",
     seoTitle: null,
     seoDescription: null,
     seoImage: null,
@@ -166,6 +172,7 @@ export const DEMO_PAGES: ContentPage[] = [
   {
     slug: "contact",
     title: "Contact",
+    templateKey: "landing",
     seoTitle: null,
     seoDescription: null,
     seoImage: null,

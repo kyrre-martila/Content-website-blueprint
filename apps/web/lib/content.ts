@@ -13,6 +13,7 @@ export type NewsItem = {
   title: string;
   summary: string;
   publishedAt: string;
+  templateKey: string;
   canonicalUrl: string | null;
   noIndex: boolean;
 };
@@ -53,6 +54,7 @@ export type ContentBlock = {
 export type ContentPage = {
   slug: string;
   title: string;
+  templateKey: string;
   seoTitle: string | null;
   seoDescription: string | null;
   seoImage: string | null;
@@ -101,6 +103,7 @@ type ApiPageBlock = {
 type ApiPage = {
   slug: string;
   title: string;
+  templateKey?: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
   seoImage: string | null;
@@ -114,6 +117,7 @@ type ApiContentItem = {
   id: string;
   slug: string;
   title: string;
+  templateKey?: string | null;
   canonicalUrl: string | null;
   noIndex: boolean;
   published: boolean;
@@ -220,6 +224,10 @@ function mapApiPage(page: ApiPage): ContentPage {
   return {
     slug: page.slug,
     title: page.title,
+    templateKey:
+      typeof page.templateKey === "string" && page.templateKey.trim()
+        ? page.templateKey
+        : "index",
     seoTitle: page.seoTitle ?? null,
     seoDescription: page.seoDescription ?? null,
     seoImage: page.seoImage ?? null,
@@ -239,6 +247,10 @@ function mapApiContentItem(item: ApiContentItem): NewsItem {
     title: item.title,
     summary: typeof data.excerpt === "string" ? data.excerpt : "",
     publishedAt: new Date(publishedAt).toISOString().slice(0, 10),
+    templateKey:
+      typeof item.templateKey === "string" && item.templateKey.trim()
+        ? item.templateKey
+        : "index",
     canonicalUrl: item.canonicalUrl ?? null,
     noIndex: Boolean(item.noIndex),
   };
