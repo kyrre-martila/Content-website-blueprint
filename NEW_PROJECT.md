@@ -22,21 +22,29 @@ cp env.example .env
 
 Set project-specific values (URLs, secrets, SMTP, DB connection).
 
-## 4) Run migrations
+## 4) Install dependencies
 
 ```bash
-pnpm prisma migrate deploy
+pnpm install
 ```
 
-## 5) Seed baseline data
+## 5) Apply migrations
 
 ```bash
-pnpm prisma db seed
+pnpm db:migrate
 ```
 
-## 6) Deploy
+## 6) Seed baseline data
 
+```bash
+pnpm db:seed
+```
+
+## 7) Develop and deploy
+
+- Dev: `pnpm dev`
 - Build: `pnpm build`
-- Start API + web behind a reverse proxy
+- Production API: `pnpm start:api`
+- Production web: `pnpm start:web`
 - Set production env vars from `.env.prod.example`
 - Validate health endpoints after release

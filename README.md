@@ -14,8 +14,8 @@ This repository is a blueprint, not a finished product. The architecture and def
 
 ```bash
 pnpm install
-pnpm prisma migrate deploy
-pnpm prisma db seed
+pnpm db:migrate
+pnpm db:seed
 pnpm dev
 ```
 
@@ -29,6 +29,16 @@ Set up environment variables first (see [docs/OPERATIONS.md](docs/OPERATIONS.md#
 - Reference example: seeded `Services` ContentType demonstrates hierarchy, taxonomy, relationship fields, archive page (`/services`), and template fallback behavior for single items.
 - Contracts: OpenAPI under `packages/contracts`.
 - Infra: Docker Compose for local + prod simulation, GitHub Actions CI/CD.
+
+## Common commands
+
+- Install dependencies: `pnpm install`
+- Apply migrations: `pnpm db:migrate`
+- Seed baseline content: `pnpm db:seed`
+- Start local development: `pnpm dev`
+- Build all apps: `pnpm build`
+- Start production API: `pnpm start:api`
+- Start production web: `pnpm start:web`
 
 ## Quickstart (development)
 
