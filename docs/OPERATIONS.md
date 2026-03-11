@@ -5,22 +5,22 @@
 1. Copy `env.example` → `.env` and set required secrets.
 2. Start base services: `docker compose -f infra/docker-compose.yml up -d`.
 3. Install deps: `pnpm install`.
-4. Generate Prisma client: `pnpm prisma:generate`.
-5. Run migrations: `pnpm prisma migrate deploy`.
-6. Seed dev data/content (optional): `pnpm prisma db seed`.
+4. Generate Prisma client (optional): `pnpm db:generate`.
+5. Run migrations: `pnpm db:migrate`.
+6. Seed dev data/content (optional): `pnpm db:seed`.
 7. Start services: `pnpm dev` (web/api).
 
 ## CI/CD Hooks
 
-- `pnpm prisma migrate deploy` runs in CI before API/web tests for the website blueprint.
+- `pnpm db:migrate` runs in CI before API/web tests for the website blueprint.
 - Seed script runs only in dev and dedicated CI jobs tagged `Seed`.
 
 ## Database Rollback
 
 1. Capture backup: `pg_dump $DATABASE_URL > backup.sql` (or restore latest managed backup).
-2. Run `pnpm prisma migrate resolve --rolled-back "<migration_id>"` to mark migration as rolled back.
+2. Run `pnpm db:resolve:rolled-back "<migration_id>"` to mark migration as rolled back.
 3. Deploy rollback artifact via pipeline.
-4. Verify schema via `pnpm prisma migrate status` before reopening traffic.
+4. Verify schema via `pnpm db:status` before reopening traffic.
 
 ## Secret Rotation
 

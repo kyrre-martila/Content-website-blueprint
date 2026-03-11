@@ -16,7 +16,7 @@
 
 1. Inspect logs filtered by `x-request-id` and error codes.
 2. Review traces for failing spans.
-3. Check DB integrity (`pnpm prisma migrate status`, `select count(*) from critical tables`).
+3. Check DB integrity (`pnpm db:status`, `select count(*) from critical tables`).
 
 ## Recovery
 

@@ -17,6 +17,6 @@ Accepted
 
 ## Consequences
 
-- Requires maintaining Prisma migrations in repo and running `prisma migrate deploy` in CI/CD.
+- Requires maintaining Prisma migrations in repo and running `pnpm db:migrate` in CI/CD.
 - Developers must understand Prisma data model and limitations (e.g., raw SQL for advanced queries).
 - Enables reuse of typed client across NestJS and Next.js services.

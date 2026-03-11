@@ -2,7 +2,7 @@
 
 ## 401 / Invalid Credentials
 
-1. Confirm user exists: `pnpm prisma user:find --email <email>` (or DB query).
+1. Confirm user exists: `pnpm --filter @blueprint/db exec prisma user:find --email <email>` (or DB query).
 2. Check password hashing version; trigger reset if mismatch.
 3. Inspect logs for `AuthService` errors with matching `x-request-id`.
 

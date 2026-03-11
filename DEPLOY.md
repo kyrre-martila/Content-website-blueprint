@@ -2,7 +2,7 @@
 
 Use this guide for production-style deployment of API + web.
 
-## 1) Build for production
+## 1) Install and build for production
 
 ```bash
 pnpm install --frozen-lockfile
@@ -23,20 +23,26 @@ Required minimum:
 - `NEXT_PUBLIC_SITE_URL`
 - `API_CORS_ORIGINS`
 
-## 3) Run API and web
+## 3) Apply database migrations
+
+```bash
+pnpm db:migrate
+```
+
+## 4) Run API and web
 
 Build artifacts must exist before startup.
 
 API:
 
 ```bash
-pnpm --filter api start
+pnpm start:api
 ```
 
 Web:
 
 ```bash
-pnpm --filter web start
+pnpm start:web
 ```
 
 If you deploy with containers, you can use:
@@ -45,7 +51,7 @@ If you deploy with containers, you can use:
 docker compose -f infra/docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
-## 4) Reverse proxy expectations
+## 5) Reverse proxy expectations
 
 Deploy behind a reverse proxy/load balancer that:
 
@@ -56,10 +62,10 @@ Deploy behind a reverse proxy/load balancer that:
 
 The provided production compose setup uses Traefik as this proxy layer.
 
-## 5) Database requirements
+## 6) Database requirements
 
 - PostgreSQL 16-compatible
 - network access from API runtime
 - `DATABASE_URL` points to the target database/schema
-- migrations applied during deploy (`pnpm prisma migrate deploy`)
+- migrations applied during deploy (`pnpm db:migrate`)
 - automated backups and restore process in place

@@ -44,16 +44,16 @@ Default container DB values are:
 
 Set `DATABASE_URL` in `.env` to match.
 
-## 4) Run migrations
+## 4) Apply migrations
 
 ```bash
-pnpm prisma migrate deploy
+pnpm db:migrate
 ```
 
 ## 5) Seed initial data
 
 ```bash
-pnpm prisma db seed
+pnpm db:seed
 ```
 
 ## 6) Run the dev servers
