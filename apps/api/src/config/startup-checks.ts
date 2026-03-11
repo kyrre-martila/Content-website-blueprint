@@ -1,0 +1,50 @@
+import { PrismaService } from "../prisma/prisma.service";
+
+type Env = Record<string, string | undefined>;
+
+const REQUIRED_ENV_VARS = [
+  "DATABASE_URL",
+  "JWT_SECRET",
+  "COOKIE_SECRET",
+  "ENCRYPTION_KEY",
+] as const;
+
+export function validateRequiredEnvVariables(env: Env = process.env) {
+  if (env.NODE_ENV === "test") {
+    return;
+  }
+
+  const missing = REQUIRED_ENV_VARS.filter((name) => {
+    const value = env[name];
+    return typeof value !== "string" || value.trim().length === 0;
+  });
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missing.join(", ")}. Please set these values in your .env file before starting the API.`,
+    );
+  }
+}
+
+export async function assertMigrationsApplied(prisma: PrismaService) {
+  const tableRows = (await prisma.$queryRawUnsafe(
+    `SELECT to_regclass('public."_prisma_migrations"') AS migration_table`,
+  )) as Array<{ migration_table: string | null }>;
+
+  if (!tableRows[0]?.migration_table) {
+    throw new Error(
+      "Database migrations have not been run: '_prisma_migrations' table is missing. Run migrations before starting the API (for example: `pnpm --filter @blueprint/db exec prisma migrate deploy`).",
+    );
+  }
+
+  const countRows = (await prisma.$queryRawUnsafe(
+    `SELECT COUNT(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`,
+  )) as Array<{ count: number | string }>;
+
+  const appliedMigrations = Number(countRows[0]?.count ?? 0);
+  if (!Number.isFinite(appliedMigrations) || appliedMigrations < 1) {
+    throw new Error(
+      "Database migrations have not been run: no applied Prisma migrations were found. Run migrations before starting the API (for example: `pnpm --filter @blueprint/db exec prisma migrate deploy`).",
+    );
+  }
+}

@@ -11,6 +11,10 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { validateSecurityConfig } from "./config/security.config";
+import {
+  assertMigrationsApplied,
+  validateRequiredEnvVariables,
+} from "./config/startup-checks";
 import * as express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { createCsrfMiddleware } from "./middleware/csrf.middleware";
@@ -27,6 +31,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { Logger } from "pino";
 import { startOtel, shutdownOtel } from "../otel";
+import { PrismaService } from "./prisma/prisma.service";
 
 const defaultCorsOrigins = ["http://localhost:3000", "https://app.example.com"];
 
@@ -104,6 +109,7 @@ async function emitOpenApiDocument(app: INestApplication) {
 }
 
 async function bootstrap() {
+  validateRequiredEnvVariables();
   validateSecurityConfig();
 
   await startOtel();
@@ -117,6 +123,9 @@ async function bootstrap() {
     );
   const metricsMiddleware = app.get(MetricsMiddleware);
   const metricsGuard = app.get(MetricsGuard);
+
+  const prisma = app.get(PrismaService);
+  await assertMigrationsApplied(prisma);
 
   if (httpLogger) {
     app.use(httpLogger);
