@@ -126,6 +126,7 @@ export interface TaxonomiesRepository {
 export interface TermsRepository {
   findMany(): Promise<Term[]>;
   findManyByTaxonomyId(taxonomyId: string): Promise<Term[]>;
+  findManyByIds(ids: string[]): Promise<Term[]>;
   findById(id: string): Promise<Term | null>;
   create(data: Omit<Term, "id" | "createdAt">): Promise<Term>;
   update(
