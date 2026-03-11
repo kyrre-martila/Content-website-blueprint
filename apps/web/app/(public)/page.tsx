@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { getHomepageContent, getPageContentBySlug } from "../../lib/content";
 import { renderBlock } from "./page/[slug]/block-renderer";
+import { resolveTemplate } from "./templates/template-registry";
 
 export default async function Homepage() {
   const content = await getPageContentBySlug("home");
@@ -37,11 +38,13 @@ export default async function Homepage() {
     })),
   );
 
+  const Template = resolveTemplate(content.templateKey);
+
   return (
-    <article className="stack">
+    <Template title={content.title}>
       {renderedBlocks.map((block) => (
         <div key={block.id}>{block.node}</div>
       ))}
-    </article>
+    </Template>
   );
 }

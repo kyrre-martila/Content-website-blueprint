@@ -6,6 +6,7 @@ import {
   resolveNewsItemBySlug,
   withTitleSuffix,
 } from "../../../../lib/content";
+import { resolveTemplate } from "../../templates/template-registry";
 
 export async function generateMetadata({
   params,
@@ -68,11 +69,11 @@ export default async function NewsItemPage({
     notFound();
   }
 
+  const Template = resolveTemplate(item.templateKey);
+
   return (
-    <article className="public-block section stack">
-      <p className="news-list__meta">{item.publishedAt}</p>
-      <h1 className="public-block__title">{item.title}</h1>
+    <Template title={item.title} meta={item.publishedAt}>
       {item.body ? <p>{item.body}</p> : <p>{item.summary}</p>}
-    </article>
+    </Template>
   );
 }

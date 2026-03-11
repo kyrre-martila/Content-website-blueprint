@@ -7,6 +7,7 @@ import {
   withTitleSuffix,
 } from "../../../../lib/content";
 import { renderBlock } from "./block-renderer";
+import { resolveTemplate } from "../../templates/template-registry";
 
 function stripHtml(value: string): string {
   return value
@@ -107,11 +108,13 @@ export default async function GenericPage({
     })),
   );
 
+  const Template = resolveTemplate(content.templateKey);
+
   return (
-    <article className="stack">
+    <Template title={content.title}>
       {renderedBlocks.map((block) => (
         <div key={block.id}>{block.node}</div>
       ))}
-    </article>
+    </Template>
   );
 }
