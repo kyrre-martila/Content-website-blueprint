@@ -7,39 +7,7 @@ import {
 import type { Request, Response } from "express";
 import { Observable } from "rxjs";
 import { tap } from "rxjs/operators";
-
-const SENSITIVE_KEYS = new Set([
-  "password",
-  "token",
-  "refreshToken",
-  "authorization",
-  "cookie",
-  "set-cookie",
-]);
-
-function maskSensitive(value: unknown): unknown {
-  if (value == null) {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => maskSensitive(item));
-  }
-
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).map(
-      ([key, val]) => {
-        if (SENSITIVE_KEYS.has(key.toLowerCase())) {
-          return [key, "[REDACTED]"];
-        }
-        return [key, maskSensitive(val)];
-      },
-    );
-    return Object.fromEntries(entries);
-  }
-
-  return value;
-}
+import { redactErrorForLogs } from "../logging/redaction.util";
 
 @Injectable()
 export class SensitiveLoggingInterceptor implements NestInterceptor {
@@ -79,7 +47,7 @@ export class SensitiveLoggingInterceptor implements NestInterceptor {
             typeof (request.log as { error?: Function }).error === "function"
           ) {
             (request.log as { error: Function }).error(
-              { err: maskSensitive(err) },
+              { err: redactErrorForLogs(err) },
               "Request failed",
             );
           }

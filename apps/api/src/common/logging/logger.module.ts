@@ -2,6 +2,7 @@ import { Global, Module } from "@nestjs/common";
 import pino, { type Logger, type LoggerOptions } from "pino";
 import pinoHttp, { type Options as PinoHttpOptions } from "pino-http";
 import { randomUUID } from "node:crypto";
+import { redactSensitiveData } from "./redaction.util";
 
 export const LOGGER_TOKEN = Symbol("LOGGER_TOKEN");
 export const HTTP_LOGGER_TOKEN = Symbol("HTTP_LOGGER_TOKEN");
@@ -9,10 +10,17 @@ export const HTTP_LOGGER_TOKEN = Symbol("HTTP_LOGGER_TOKEN");
 const REDACT_FIELDS = [
   "req.headers.authorization",
   "req.headers.cookie",
+  "req.body.password",
+  "req.body.token",
+  "req.body.refreshToken",
+  "req.body.secret",
+  "req.body.authorization",
+  "req.body.cookie",
+  "req.body.*.password",
+  "req.body.*.token",
+  "req.body.*.refreshToken",
+  "req.body.*.secret",
   "res.headers.set-cookie",
-  "password",
-  "token",
-  "refreshToken",
 ];
 
 const MAX_BODY_LENGTH = 1024;
@@ -31,7 +39,7 @@ function sanitizeBody(body: unknown): unknown {
     return "[Unserializable body]";
   }
 
-  return body;
+  return redactSensitiveData(body);
 }
 
 function createLoggerOptions(): LoggerOptions {
@@ -47,7 +55,7 @@ function createLoggerOptions(): LoggerOptions {
           id: (req as { id?: string }).id,
           method: req.method,
           url: req.url,
-          headers: req.headers,
+          headers: redactSensitiveData(req.headers),
           remoteAddress: req.remoteAddress,
           remotePort: req.remotePort,
           body: sanitizeBody((req as { body?: unknown }).body),
@@ -56,7 +64,9 @@ function createLoggerOptions(): LoggerOptions {
       res(res) {
         return {
           statusCode: res.statusCode,
-          headers: res.getHeaders ? res.getHeaders() : undefined,
+          headers: redactSensitiveData(
+            res.getHeaders ? res.getHeaders() : undefined,
+          ),
           body: sanitizeBody((res as unknown as { body?: unknown }).body),
         };
       },
