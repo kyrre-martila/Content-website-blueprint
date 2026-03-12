@@ -236,12 +236,14 @@ async function seedNews() {
     update: {
       name: "News",
       description: "Demo news entries for local development.",
+      isPublic: true,
     },
     create: {
       id: "seed-content-type-news",
       name: "News",
       slug: "news",
       description: "Demo news entries for local development.",
+      isPublic: true,
     },
   });
 
@@ -273,6 +275,7 @@ async function seedServices() {
       description:
         "Reference ContentType showing hierarchy, taxonomy, and relationship fields.",
       templateKey: "service",
+      isPublic: true,
       fields: [
         {
           key: "shortDescription",
@@ -323,6 +326,7 @@ async function seedServices() {
       description:
         "Reference ContentType showing hierarchy, taxonomy, and relationship fields.",
       templateKey: "service",
+      isPublic: true,
       fields: [
         {
           key: "shortDescription",

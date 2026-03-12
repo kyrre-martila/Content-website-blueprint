@@ -322,6 +322,11 @@ class CreateContentTypeDto {
   @IsOptional()
   @IsString()
   templateKey?: string;
+
+  @ApiProperty({ required: false, default: true })
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }
 
 class UpdateContentTypeDto {
@@ -352,6 +357,11 @@ class UpdateContentTypeDto {
   @IsOptional()
   @IsString()
   templateKey?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }
 
 class CreateContentItemDto {
@@ -849,6 +859,7 @@ export class ContentController {
     return this.contentTypes.create({
       ...body,
       templateKey: body.templateKey ?? null,
+      isPublic: body.isPublic ?? true,
     });
   }
 

@@ -1,0 +1,2 @@
+ALTER TABLE "ContentType"
+ADD COLUMN "isPublic" BOOLEAN NOT NULL DEFAULT true;

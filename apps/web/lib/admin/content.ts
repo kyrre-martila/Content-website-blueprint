@@ -32,6 +32,7 @@ export type AdminContentType = {
   name: string;
   slug: string;
   description: string;
+  isPublic: boolean;
   fields: AdminContentFieldDefinition[];
 };
 

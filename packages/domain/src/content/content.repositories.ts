@@ -40,8 +40,10 @@ export interface PageBlocksRepository {
 
 export interface ContentTypesRepository {
   findMany(): Promise<ContentType[]>;
+  findManyPublic(): Promise<ContentType[]>;
   findById(id: string): Promise<ContentType | null>;
   findBySlug(slug: string): Promise<ContentType | null>;
+  findPublicBySlug(slug: string): Promise<ContentType | null>;
   create(
     data: Omit<ContentType, "id" | "createdAt" | "updatedAt">,
   ): Promise<ContentType>;

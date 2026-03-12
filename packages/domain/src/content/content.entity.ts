@@ -54,6 +54,7 @@ export type ContentType = {
   name: string;
   slug: string;
   description: string;
+  isPublic: boolean;
   fields: ContentFieldDefinition[];
   templateKey: string | null;
   createdAt: Date;

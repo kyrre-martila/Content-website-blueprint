@@ -33,6 +33,7 @@ type ContentTypeDraft = {
   name: string;
   slug: string;
   description: string;
+  isPublic: boolean;
   fields: AdminContentFieldDefinition[];
 };
 
@@ -165,6 +166,7 @@ function toContentTypeDraft(contentType: AdminContentType): ContentTypeDraft {
     name: contentType.name,
     slug: contentType.slug,
     description: contentType.description,
+    isPublic: contentType.isPublic,
     fields: contentType.fields,
   };
 }
@@ -500,6 +502,7 @@ export function ContentAdminClient({
     name: "",
     slug: "",
     description: "",
+    isPublic: true,
     fields: [],
   });
   const [status, setStatus] = React.useState<string | null>(null);
@@ -529,6 +532,7 @@ export function ContentAdminClient({
       name: draft.name.trim(),
       slug: normalizeSlug(draft.slug),
       description: draft.description.trim(),
+      isPublic: draft.isPublic,
       fields: draft.fields,
     };
 
@@ -561,7 +565,7 @@ export function ContentAdminClient({
     }));
     setCreateDrafts((curr) => ({ ...curr, [next.id]: emptyDraft(next) }));
     setSelectedTypeId(next.id);
-    setNewTypeDraft({ name: "", slug: "", description: "", fields: [] });
+    setNewTypeDraft({ name: "", slug: "", description: "", isPublic: true, fields: [] });
     setStatus("Content model saved.");
   }
 
@@ -720,6 +724,19 @@ export function ContentAdminClient({
                     }
                   />
                 </label>
+                <label>
+                  Public archive and item routes
+                  <input
+                    type="checkbox"
+                    checked={draft.isPublic}
+                    onChange={(e) =>
+                      setContentTypeDrafts((curr) => ({
+                        ...curr,
+                        [type.id]: { ...draft, isPublic: e.target.checked },
+                      }))
+                    }
+                  />
+                </label>
                 <p>Fields shown to editors</p>
                 {draft.fields.map((field, index) => (
                   <FieldDefinitionEditor
@@ -807,6 +824,19 @@ export function ContentAdminClient({
                   setNewTypeDraft((curr) => ({
                     ...curr,
                     description: e.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Public archive and item routes
+              <input
+                type="checkbox"
+                checked={newTypeDraft.isPublic}
+                onChange={(e) =>
+                  setNewTypeDraft((curr) => ({
+                    ...curr,
+                    isPublic: e.target.checked,
                   }))
                 }
               />
