@@ -9,6 +9,7 @@ import {
 import { Observable, throwError } from "rxjs";
 import { catchError } from "rxjs/operators";
 import { DomainError } from "@org/domain";
+import { redactSensitiveData } from "../logging/redaction.util";
 
 @Injectable()
 export class DomainErrorInterceptor implements NestInterceptor {
@@ -56,14 +57,6 @@ export class DomainErrorInterceptor implements NestInterceptor {
   }
 
   private sanitizeMeta(meta: Record<string, unknown>): Record<string, unknown> {
-    const sanitized: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(meta)) {
-      if (/password|secret|token|hash/i.test(key)) {
-        sanitized[key] = "[redacted]";
-      } else {
-        sanitized[key] = value;
-      }
-    }
-    return sanitized;
+    return redactSensitiveData(meta) as Record<string, unknown>;
   }
 }
