@@ -116,6 +116,8 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
+  const expressApp = app.getHttpAdapter().getInstance() as express.Express;
+  expressApp.set("trust proxy", 1);
   const logger = app.get<Logger>(LOGGER_TOKEN);
   const httpLogger =
     app.get<(req: Request, res: Response, next: NextFunction) => void>(

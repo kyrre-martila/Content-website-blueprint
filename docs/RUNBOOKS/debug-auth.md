@@ -8,9 +8,10 @@
 
 ## CSRF Failures
 
-1. Verify browser has `XSRF-TOKEN` cookie set.
-2. Ensure client sends `x-csrf-token` header that matches cookie.
+1. Verify browser has both `XSRF-TOKEN` and signed `XSRF-TOKEN-SECRET` cookies set.
+2. Ensure client sends `x-csrf-token` header equal to the `XSRF-TOKEN` cookie value.
 3. Confirm request origin is allowlisted via `API_CORS_ORIGINS`.
+4. Behind a proxy/tunnel, verify `x-forwarded-proto=https` is forwarded in production so secure cookies are accepted.
 
 ## CORS Errors
 
