@@ -129,6 +129,7 @@ model ContentType {
   name        String
   slug        String        @unique
   description String
+  isPublic    Boolean       @default(true)
   fields      Json          @default("[]")
   templateKey String?
   createdAt   DateTime      @default(now())

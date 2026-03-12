@@ -206,6 +206,7 @@ function mapContentType(type: {
   name: string;
   slug: string;
   description: string;
+  isPublic: boolean;
   fields: unknown;
   templateKey: string | null;
   createdAt: Date;
@@ -616,6 +617,14 @@ export class ContentTypesPrismaRepository implements ContentTypesRepository {
     return types.map(mapContentType);
   }
 
+  async findManyPublic(): Promise<ContentType[]> {
+    const types = await this.prisma.contentType.findMany({
+      where: { isPublic: true },
+      orderBy: { createdAt: "desc" },
+    });
+    return types.map(mapContentType);
+  }
+
   async findById(id: string): Promise<ContentType | null> {
     const type = await this.prisma.contentType.findUnique({ where: { id } });
     return type ? mapContentType(type) : null;
@@ -623,6 +632,13 @@ export class ContentTypesPrismaRepository implements ContentTypesRepository {
 
   async findBySlug(slug: string): Promise<ContentType | null> {
     const type = await this.prisma.contentType.findUnique({ where: { slug } });
+    return type ? mapContentType(type) : null;
+  }
+
+  async findPublicBySlug(slug: string): Promise<ContentType | null> {
+    const type = await this.prisma.contentType.findFirst({
+      where: { slug, isPublic: true },
+    });
     return type ? mapContentType(type) : null;
   }
 

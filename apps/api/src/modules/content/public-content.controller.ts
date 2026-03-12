@@ -115,7 +115,7 @@ export class PublicContentController {
 
   @Get("types")
   async listContentTypes(): Promise<PublicContentTypeDto[]> {
-    const types = await this.contentTypes.findMany();
+    const types = await this.contentTypes.findManyPublic();
     return types.map((type) => this.mapPublicContentType(type));
   }
 
@@ -124,6 +124,11 @@ export class PublicContentController {
     @Param("slug") slug: string,
     @Query() query: PublicListContentItemsQueryDto,
   ) {
+    const type = await this.contentTypes.findPublicBySlug(slug);
+    if (!type) {
+      return [];
+    }
+
     if (query.mode === "tree") {
       const items = await this.contentItems.findTreeByContentTypeSlug(slug);
       return this.filterPublishedContentItemTree(items).map((item) =>
@@ -142,6 +147,11 @@ export class PublicContentController {
     @Param("contentTypeSlug") contentTypeSlug: string,
     @Param("slug") slug: string,
   ) {
+    const type = await this.contentTypes.findPublicBySlug(contentTypeSlug);
+    if (!type) {
+      return null;
+    }
+
     const result = await this.contentItems.findBySlugOrRedirect(
       contentTypeSlug,
       slug,
@@ -180,12 +190,13 @@ export class PublicContentController {
     slug: string;
     name: string;
     templateKey: string | null;
+    isPublic: boolean;
   }): PublicContentTypeDto {
     return {
       slug: type.slug,
       name: type.name,
       templateKey: type.templateKey,
-      isPublic: true,
+      isPublic: type.isPublic,
     };
   }
 
