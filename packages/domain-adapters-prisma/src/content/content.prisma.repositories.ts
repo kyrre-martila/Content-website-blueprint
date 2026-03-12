@@ -1,4 +1,6 @@
 import { DomainError } from "@org/domain";
+import type { Prisma } from "@prisma/client";
+import type { InputJsonValue } from "@prisma/client/runtime/library";
 import type {
   ContentItem,
   ContentItemsRepository,
@@ -93,7 +95,7 @@ function mapPage(page: {
 function mapInputBlocks(blocks: PageBlock[]) {
   return blocks.map((block) => ({
     type: block.type,
-    data: block.data as any,
+    data: block.data as InputJsonValue,
     order: block.order,
   }));
 }
@@ -417,7 +419,7 @@ export class PagesPrismaRepository implements PagesRepository {
   ): Promise<Page> {
     const { blocks, ...pageData } = data;
 
-    return this.prisma.$transaction(async (tx: any) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const existing = await tx.page.findUnique({ where: { id } });
       if (!existing) {
         throw new DomainError("VALIDATION_ERROR", "Page not found.");
@@ -508,7 +510,7 @@ export class PageBlocksPrismaRepository implements PageBlocksRepository {
     const block = await this.prisma.pageBlock.create({
       data: {
         ...data,
-        data: data.data as any,
+        data: data.data as InputJsonValue,
       },
     });
     return mapPageBlock(block);
@@ -522,7 +524,8 @@ export class PageBlocksPrismaRepository implements PageBlocksRepository {
       where: { id },
       data: {
         ...data,
-        data: data.data ? (data.data as any) : undefined,
+        data:
+          data.data === undefined ? undefined : (data.data as InputJsonValue),
       },
     });
     return mapPageBlock(block);
@@ -559,7 +562,7 @@ export class ContentTypesPrismaRepository implements ContentTypesRepository {
     const type = await this.prisma.contentType.create({
       data: {
         ...data,
-        fields: data.fields as any,
+        fields: data.fields as InputJsonValue,
       },
     });
     return mapContentType(type);
@@ -573,7 +576,10 @@ export class ContentTypesPrismaRepository implements ContentTypesRepository {
       where: { id },
       data: {
         ...data,
-        fields: data.fields ? (data.fields as any) : undefined,
+        fields:
+          data.fields === undefined
+            ? undefined
+            : (data.fields as InputJsonValue),
       },
     });
     return mapContentType(type);
@@ -775,13 +781,22 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
       : [];
 
     const pageById = new Map<string, Page>(
-      pages.map((entry: any) => [entry.id, mapPage(entry)]),
+      pages.map((entry: Parameters<typeof mapPage>[0]) => [
+        entry.id,
+        mapPage(entry),
+      ]),
     );
     const mediaById = new Map<string, Media>(
-      media.map((entry: any) => [entry.id, mapMedia(entry)]),
+      media.map((entry: Parameters<typeof mapMedia>[0]) => [
+        entry.id,
+        mapMedia(entry),
+      ]),
     );
     const contentItemById = new Map<string, ContentItem>(
-      contentItems.map((entry: any) => [entry.id, mapContentItem(entry)]),
+      contentItems.map((entry: Parameters<typeof mapContentItem>[0]) => [
+        entry.id,
+        mapContentItem(entry),
+      ]),
     );
 
     return items.map((item) => {
@@ -862,7 +877,7 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
         ...data,
         parentId: data.parentId ?? null,
         sortOrder: data.sortOrder ?? 0,
-        data: data.data as any,
+        data: data.data as InputJsonValue,
       },
     });
     return mapContentItem(item);
@@ -872,7 +887,7 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
     id: string,
     data: Partial<Omit<ContentItem, "id" | "createdAt" | "updatedAt">>,
   ): Promise<ContentItem> {
-    return this.prisma.$transaction(async (tx: any) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const existing = await tx.contentItem.findUnique({ where: { id } });
       if (!existing) {
         throw new DomainError("VALIDATION_ERROR", "Content item not found.");
@@ -949,7 +964,8 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
           ...data,
           parentId: data.parentId === undefined ? undefined : data.parentId,
           sortOrder: data.sortOrder,
-          data: data.data ? (data.data as any) : undefined,
+          data:
+            data.data === undefined ? undefined : (data.data as InputJsonValue),
         },
       });
       return mapContentItem(item);
@@ -1073,7 +1089,7 @@ export class ContentItemTermsPrismaRepository
     contentItemId: string,
     termIds: string[],
   ): Promise<ContentItemTerm[]> {
-    return this.prisma.$transaction(async (tx: any) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.contentItemTerm.deleteMany({ where: { contentItemId } });
       if (termIds.length > 0) {
         await tx.contentItemTerm.createMany({
