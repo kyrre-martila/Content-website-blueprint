@@ -1,8 +1,9 @@
 import type { Request, Response, NextFunction, RequestHandler } from "express";
-import csurf from "csurf";
+import { randomBytes, createHmac, timingSafeEqual } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
 
 const MOBILE_PATH_REGEX = /^\/api\/v1\/mobile\//;
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 function shouldBypassCsrf(req: Request): boolean {
   if (MOBILE_PATH_REGEX.test(req.path)) {
@@ -15,71 +16,89 @@ function shouldBypassCsrf(req: Request): boolean {
   );
 }
 
-function getCsrfToken(
-  req: Request & { csrfToken?: () => string },
-): string | undefined {
-  if (!req.csrfToken) {
-    return undefined;
+function shouldSetSecureCookie(req: Request, isProd: boolean): boolean {
+  if (!isProd) {
+    return false;
   }
-  try {
-    return req.csrfToken();
-  } catch {
-    return undefined;
+
+  if (req.secure) {
+    return true;
   }
+
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  if (typeof forwardedProto === "string") {
+    return forwardedProto.split(",")[0].trim().toLowerCase() === "https";
+  }
+
+  return false;
+}
+
+function createToken(secret: string, hmacSecret: string): string {
+  return createHmac("sha256", hmacSecret).update(secret).digest("base64url");
+}
+
+function safeTokenEquals(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function readHeaderToken(req: Request): string | undefined {
+  const token = req.headers["x-csrf-token"];
+  return typeof token === "string" && token.length > 0 ? token : undefined;
 }
 
 export function createCsrfMiddleware(config: ConfigService): RequestHandler {
   const isProd = config.get<string>("NODE_ENV") === "production";
   const cookieDomain = config.get<string>("COOKIE_DOMAIN") ?? undefined;
   const csrfCookieName = config.get<string>("CSRF_COOKIE_NAME") ?? "XSRF-TOKEN";
-  const csrfProtection = csurf({
-    cookie: {
-      key: "csrf-secret",
-      httpOnly: true,
-      sameSite: "strict",
-      secure: isProd,
-      path: "/",
-      domain: cookieDomain,
-    },
-    value(req) {
-      return (req.headers["x-csrf-token"] as string | undefined) ?? "";
-    },
-  }) as unknown as RequestHandler;
+  const csrfSecretCookieName = `${csrfCookieName}-SECRET`;
+  const hmacSecret = config.getOrThrow<string>("COOKIE_SECRET");
 
   return (req: Request, res: Response, next: NextFunction) => {
     if (shouldBypassCsrf(req)) {
       return next();
     }
 
-    return csrfProtection(req, res, (err?: unknown) => {
-      if (err) {
-        if (
-          typeof err === "object" &&
-          err !== null &&
-          "code" in err &&
-          (err as { code?: unknown }).code === "EBADCSRFTOKEN"
-        ) {
-          return res.status(403).json({ message: "Invalid CSRF token" });
-        }
-        return next(err);
-      }
+    const secureCookie = shouldSetSecureCookie(req, isProd);
+    const secretCookie = req.signedCookies?.[csrfSecretCookieName] as
+      | string
+      | undefined;
 
-      if (req.method === "GET") {
-        const token = getCsrfToken(
-          req as Request & { csrfToken?: () => string },
-        );
-        if (token) {
-          res.cookie(csrfCookieName, token, {
-            httpOnly: false,
-            sameSite: "strict",
-            secure: isProd,
-            path: "/",
-            domain: cookieDomain,
-          });
-        }
-      }
+    const csrfToken = secretCookie ? createToken(secretCookie, hmacSecret) : undefined;
+
+    if (SAFE_METHODS.has(req.method.toUpperCase())) {
+      const secret = secretCookie ?? randomBytes(32).toString("base64url");
+      const token = csrfToken ?? createToken(secret, hmacSecret);
+
+      res.cookie(csrfSecretCookieName, secret, {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: secureCookie,
+        path: "/",
+        domain: cookieDomain,
+        signed: true,
+      });
+
+      res.cookie(csrfCookieName, token, {
+        httpOnly: false,
+        sameSite: "strict",
+        secure: secureCookie,
+        path: "/",
+        domain: cookieDomain,
+      });
 
       return next();
-    });
+    }
+
+    const headerToken = readHeaderToken(req);
+    if (!secretCookie || !csrfToken || !headerToken || !safeTokenEquals(csrfToken, headerToken)) {
+      return res.status(403).json({ message: "Invalid CSRF token" });
+    }
+
+    return next();
   };
 }
