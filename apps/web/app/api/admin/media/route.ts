@@ -3,7 +3,7 @@ import { requireMinimumAdminRole } from "../auth";
 import { buildForwardHeaders, getApiBase } from "../utils";
 
 export async function GET() {
-  const denied = await requireMinimumAdminRole();
+  const denied = await requireMinimumAdminRole("admin");
   if (denied) {
     return denied;
   }

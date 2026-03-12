@@ -203,6 +203,32 @@ const CONTENT_FIELD_TYPES = [
 
 const RELATION_TARGET_TYPES = ["contentType", "page", "media"] as const;
 
+const ADMIN_EDITABLE_SETTING_KEYS = new Set([
+  "siteName",
+  "siteUrl",
+  "defaultSeoImage",
+  "defaultTitleSuffix",
+  "site_title",
+  "site_tagline",
+  "logo_url",
+  "footer_text",
+  "facebook_url",
+  "instagram_url",
+  "youtube_url",
+  "site_url",
+  "robots_noindex",
+  "robots_disallow_all",
+  "staging_enabled",
+  "staging_base_url",
+  "staging_requires_auth",
+]);
+
+const PROTECTED_SETTING_PREFIXES = [
+  "system_",
+  "template_",
+  "security_",
+] as const;
+
 class ContentFieldRelationDto {
   @ApiProperty({ enum: RELATION_TARGET_TYPES })
   @IsString()
@@ -1448,13 +1474,13 @@ export class ContentController {
 
   @Get("taxonomies")
   async listTaxonomies(@Req() req: Request) {
-    await requireMinimumRole(req, this.auth, "editor");
+    await requireMinimumRole(req, this.auth, "admin");
     return this.taxonomies.findMany();
   }
 
   @Get("taxonomies/:id")
   async getTaxonomy(@Req() req: Request, @Param("id") id: string) {
-    await requireMinimumRole(req, this.auth, "editor");
+    await requireMinimumRole(req, this.auth, "admin");
     return this.taxonomies.findById(id);
   }
 
@@ -1483,7 +1509,7 @@ export class ContentController {
 
   @Get("terms")
   async listTerms(@Req() req: Request, @Query() query: ListTermsQueryDto) {
-    await requireMinimumRole(req, this.auth, "editor");
+    await requireMinimumRole(req, this.auth, "admin");
     if (query.taxonomyId) {
       return this.terms.findManyByTaxonomyId(query.taxonomyId);
     }
@@ -1492,7 +1518,7 @@ export class ContentController {
 
   @Get("terms/:id")
   async getTerm(@Req() req: Request, @Param("id") id: string) {
-    await requireMinimumRole(req, this.auth, "editor");
+    await requireMinimumRole(req, this.auth, "admin");
     return this.terms.findById(id);
   }
 
@@ -1594,27 +1620,60 @@ export class ContentController {
 
   @Get("settings")
   async listSettings(@Req() req: Request) {
-    await requireMinimumRole(req, this.auth, "admin");
-    return this.settings.findMany();
+    const role = await requireMinimumRole(req, this.auth, "admin");
+    const settings = await this.settings.findMany();
+    if (role === "super_admin") {
+      return settings;
+    }
+
+    return settings.filter((setting) =>
+      this.isAdminEditableSetting(setting.key),
+    );
   }
 
   @Get("settings/:key")
   async getSetting(@Req() req: Request, @Param("key") key: string) {
-    await requireMinimumRole(req, this.auth, "admin");
+    const role = await requireMinimumRole(req, this.auth, "admin");
+    this.ensureRoleCanManageSetting(role, key);
     return this.settings.findByKey(key);
   }
 
   @Post("settings")
   async upsertSetting(@Req() req: Request, @Body() body: UpsertSiteSettingDto) {
-    await requireMinimumRole(req, this.auth, "admin");
+    const role = await requireMinimumRole(req, this.auth, "admin");
+    this.ensureRoleCanManageSetting(role, body.key);
     return this.settings.upsert(body);
   }
 
   @Delete("settings/:key")
   async deleteSetting(@Req() req: Request, @Param("key") key: string) {
-    await requireMinimumRole(req, this.auth, "admin");
+    const role = await requireMinimumRole(req, this.auth, "admin");
+    this.ensureRoleCanManageSetting(role, key);
     await this.settings.delete(key);
     return { ok: true };
+  }
+
+  private isAdminEditableSetting(key: string): boolean {
+    return ADMIN_EDITABLE_SETTING_KEYS.has(key);
+  }
+
+  private isProtectedSettingKey(key: string): boolean {
+    return PROTECTED_SETTING_PREFIXES.some((prefix) => key.startsWith(prefix));
+  }
+
+  private ensureRoleCanManageSetting(
+    role: "editor" | "admin" | "super_admin",
+    key: string,
+  ) {
+    if (role === "super_admin") {
+      return;
+    }
+
+    if (!this.isAdminEditableSetting(key) || this.isProtectedSettingKey(key)) {
+      throw new ForbiddenException(
+        "Access denied: only super_admin can manage this setting.",
+      );
+    }
   }
 
   @Get("media")

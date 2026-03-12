@@ -92,12 +92,13 @@ export class MediaController {
   })
   async uploadMedia(
     @Req() req: Request,
-    @UploadedFile() file:
+    @UploadedFile()
+    file:
       | { buffer: Buffer; originalname: string; mimetype: string }
       | undefined,
     @Body() body: UploadMediaDto,
   ) {
-    await requireMinimumRole(req, this.auth, "editor");
+    await requireMinimumRole(req, this.auth, "admin");
 
     if (!file) {
       throw new BadRequestException("File is required");
@@ -118,7 +119,7 @@ export class MediaController {
 
   @Delete(":id")
   async deleteMedia(@Req() req: Request, @Param("id") id: string) {
-    await requireMinimumRole(req, this.auth, "editor");
+    await requireMinimumRole(req, this.auth, "admin");
     await this.mediaService.delete(id);
     return { ok: true };
   }
@@ -129,7 +130,7 @@ export class MediaController {
     @Param("id") id: string,
     @Body() body: UpdateMediaDto,
   ) {
-    await requireMinimumRole(req, this.auth, "editor");
+    await requireMinimumRole(req, this.auth, "admin");
     const nextAlt = body.alt === undefined ? undefined : body.alt.trim();
 
     if (nextAlt !== undefined && !nextAlt) {
@@ -174,12 +175,16 @@ export class MediaController {
 
     const contentTypes = await this.contentTypes.findMany();
     for (const contentType of contentTypes) {
-      const imageFields = contentType.fields.filter((field: { type: string }) => field.type === "image");
+      const imageFields = contentType.fields.filter(
+        (field: { type: string }) => field.type === "image",
+      );
       if (imageFields.length === 0) {
         continue;
       }
 
-      const items = await this.contentItems.findManyByContentTypeId(contentType.id);
+      const items = await this.contentItems.findManyByContentTypeId(
+        contentType.id,
+      );
       for (const item of items) {
         for (const field of imageFields) {
           const value = item.data[field.key];

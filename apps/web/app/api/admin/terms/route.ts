@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireMinimumAdminRole } from "../auth";
+import { requireMinimumAdminRole, requireSuperAdmin } from "../auth";
 import { buildForwardHeaders, getApiBase } from "../utils";
 
 export async function GET(request: Request) {
-  const denied = await requireMinimumAdminRole();
+  const denied = await requireMinimumAdminRole("admin");
   if (denied) return denied;
 
   const { searchParams } = new URL(request.url);
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const denied = await requireMinimumAdminRole();
+  const denied = await requireSuperAdmin();
   if (denied) return denied;
 
   const body = await request.text();

@@ -193,7 +193,7 @@ function FieldDefinitionEditor({
     <fieldset>
       <legend>{field.label?.trim() || field.key || "New field"}</legend>
       <label>
-        Field key
+        Internal field key
         <input
           value={field.key}
           onChange={(e) => onChange({ ...field, key: e.target.value })}
@@ -202,7 +202,7 @@ function FieldDefinitionEditor({
         />
       </label>
       <label>
-        Editor label
+        Field label shown to editors
         <input
           value={field.label ?? ""}
           onChange={(e) => onChange({ ...field, label: e.target.value })}
@@ -256,7 +256,7 @@ function FieldDefinitionEditor({
         field.type === "contentItem" ||
         field.type === "page") && (
         <label>
-          Allow multiple values (comma-separated IDs)
+          Allow multiple selections (separate each with a comma)
           <input
             type="checkbox"
             checked={Boolean(field.relation?.multiple)}
@@ -363,7 +363,7 @@ function ContentItemEditor({
         />
       </label>
       <label>
-        URL slug
+        Web address (slug)
         <input
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
@@ -382,14 +382,14 @@ function ContentItemEditor({
       <fieldset className="page-editor__seo">
         <legend>Search appearance</legend>
         <label>
-          SEO Title
+          Search title
           <input
             value={seoTitle}
             onChange={(e) => setSeoTitle(e.target.value)}
           />
         </label>
         <label>
-          SEO Description
+          Search summary
           <textarea
             rows={3}
             value={seoDescription}
@@ -442,10 +442,22 @@ function ContentItemEditor({
                 placeholder={field.placeholder}
               />
             )}
+            {field.type === "relation" ||
+            field.type === "media" ||
+            field.type === "contentItem" ||
+            field.type === "page" ? (
+              <small>
+                Use one or more reference IDs. For multiple values, separate IDs
+                with commas.
+              </small>
+            ) : null}
           </label>
         ))
       ) : (
-        <p>This content type has no editor fields yet. Ask an administrator to add fields first.</p>
+        <p>
+          This content area has no editable fields yet. Ask a super admin to add
+          guided fields first.
+        </p>
       )}
       <button type="submit">Save</button>
       <button type="button" onClick={() => void onDelete(item.id)}>
@@ -543,7 +555,10 @@ export function ContentAdminClient({
         ? curr.map((entry) => (entry.id === next.id ? next : entry))
         : [next, ...curr];
     });
-    setContentTypeDrafts((curr) => ({ ...curr, [next.id]: toContentTypeDraft(next) }));
+    setContentTypeDrafts((curr) => ({
+      ...curr,
+      [next.id]: toContentTypeDraft(next),
+    }));
     setCreateDrafts((curr) => ({ ...curr, [next.id]: emptyDraft(next) }));
     setSelectedTypeId(next.id);
     setNewTypeDraft({ name: "", slug: "", description: "", fields: [] });
@@ -650,7 +665,11 @@ export function ContentAdminClient({
       <h2>Content areas</h2>
       <div>
         {contentTypes.map((type) => (
-          <button key={type.id} type="button" onClick={() => setSelectedTypeId(type.id)}>
+          <button
+            key={type.id}
+            type="button"
+            onClick={() => setSelectedTypeId(type.id)}
+          >
             {type.name}
           </button>
         ))}
@@ -660,7 +679,8 @@ export function ContentAdminClient({
         <>
           <h2>Content model setup</h2>
           {contentTypes.map((type) => {
-            const draft = contentTypeDrafts[type.id] ?? toContentTypeDraft(type);
+            const draft =
+              contentTypeDrafts[type.id] ?? toContentTypeDraft(type);
             return (
               <article key={type.id}>
                 <h3>{type.name}</h3>
@@ -721,7 +741,9 @@ export function ContentAdminClient({
                         ...curr,
                         [type.id]: {
                           ...draft,
-                          fields: draft.fields.filter((_, idx) => idx !== index),
+                          fields: draft.fields.filter(
+                            (_, idx) => idx !== index,
+                          ),
                         },
                       }))
                     }
@@ -741,10 +763,16 @@ export function ContentAdminClient({
                 >
                   Add field
                 </button>
-                <button type="button" onClick={() => void saveContentType(draft)}>
+                <button
+                  type="button"
+                  onClick={() => void saveContentType(draft)}
+                >
                   Save content model
                 </button>
-                <button type="button" onClick={() => void deleteContentType(type.id)}>
+                <button
+                  type="button"
+                  onClick={() => void deleteContentType(type.id)}
+                >
                   Delete content model
                 </button>
               </article>
@@ -776,7 +804,10 @@ export function ContentAdminClient({
               <input
                 value={newTypeDraft.description}
                 onChange={(e) =>
-                  setNewTypeDraft((curr) => ({ ...curr, description: e.target.value }))
+                  setNewTypeDraft((curr) => ({
+                    ...curr,
+                    description: e.target.value,
+                  }))
                 }
               />
             </label>
@@ -811,7 +842,10 @@ export function ContentAdminClient({
             >
               Add field
             </button>
-            <button type="button" onClick={() => void saveContentType(newTypeDraft)}>
+            <button
+              type="button"
+              onClick={() => void saveContentType(newTypeDraft)}
+            >
               Create content area
             </button>
           </article>
@@ -845,7 +879,10 @@ export function ContentAdminClient({
                 canonicalUrl: createDraft.canonicalUrl.trim() || null,
                 noIndex: createDraft.noIndex,
                 published: createDraft.published,
-                data: buildDataFromFields(selectedType.fields, createDraft.values),
+                data: buildDataFromFields(
+                  selectedType.fields,
+                  createDraft.values,
+                ),
               });
             }}
           >
@@ -856,14 +893,17 @@ export function ContentAdminClient({
                 onChange={(e) =>
                   setCreateDrafts((curr) => ({
                     ...curr,
-                    [selectedType.id]: { ...createDraft, title: e.target.value },
+                    [selectedType.id]: {
+                      ...createDraft,
+                      title: e.target.value,
+                    },
                   }))
                 }
                 required
               />
             </label>
             <label>
-              URL slug
+              Web address (slug)
               <input
                 value={createDraft.slug}
                 onChange={(e) =>
@@ -879,23 +919,73 @@ export function ContentAdminClient({
               <label key={field.key}>
                 {getFieldLabel(field)}
                 {field.description ? <small>{field.description}</small> : null}
-                <input
-                  value={createDraft.values[field.key] ?? ""}
-                  onChange={(e) =>
-                    setCreateDrafts((curr) => ({
-                      ...curr,
-                      [selectedType.id]: {
-                        ...createDraft,
-                        values: {
-                          ...createDraft.values,
-                          [field.key]: e.target.value,
+                {field.type === "textarea" || field.type === "rich_text" ? (
+                  <textarea
+                    value={createDraft.values[field.key] ?? ""}
+                    onChange={(e) =>
+                      setCreateDrafts((curr) => ({
+                        ...curr,
+                        [selectedType.id]: {
+                          ...createDraft,
+                          values: {
+                            ...createDraft.values,
+                            [field.key]: e.target.value,
+                          },
                         },
-                      },
-                    }))
-                  }
-                  placeholder={field.placeholder}
-                  required={field.required}
-                />
+                      }))
+                    }
+                    rows={field.type === "rich_text" ? 6 : 3}
+                    placeholder={field.placeholder}
+                    required={field.required}
+                  />
+                ) : field.type === "boolean" ? (
+                  <select
+                    value={createDraft.values[field.key] ?? "false"}
+                    onChange={(e) =>
+                      setCreateDrafts((curr) => ({
+                        ...curr,
+                        [selectedType.id]: {
+                          ...createDraft,
+                          values: {
+                            ...createDraft.values,
+                            [field.key]: e.target.value,
+                          },
+                        },
+                      }))
+                    }
+                  >
+                    <option value="false">No</option>
+                    <option value="true">Yes</option>
+                  </select>
+                ) : (
+                  <input
+                    type={fieldTypeInputType(field.type)}
+                    value={createDraft.values[field.key] ?? ""}
+                    onChange={(e) =>
+                      setCreateDrafts((curr) => ({
+                        ...curr,
+                        [selectedType.id]: {
+                          ...createDraft,
+                          values: {
+                            ...createDraft.values,
+                            [field.key]: e.target.value,
+                          },
+                        },
+                      }))
+                    }
+                    placeholder={field.placeholder}
+                    required={field.required}
+                  />
+                )}
+                {field.type === "relation" ||
+                field.type === "media" ||
+                field.type === "contentItem" ||
+                field.type === "page" ? (
+                  <small>
+                    Use one or more reference IDs. For multiple values, separate
+                    IDs with commas.
+                  </small>
+                ) : null}
               </label>
             ))}
             <button type="submit">Create entry</button>
