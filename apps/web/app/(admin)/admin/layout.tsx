@@ -11,8 +11,9 @@ const adminNavItems = [
   { href: "/admin/content", label: "Content", minRole: "editor" },
   { href: "/admin/navigation", label: "Navigation", minRole: "admin" },
   { href: "/admin/settings", label: "Site settings", minRole: "admin" },
-  { href: "/admin/media", label: "Media", minRole: "editor" },
-  { href: "/admin/profile", label: "Profile", minRole: "editor" },
+  { href: "/admin/media", label: "Media library", minRole: "admin" },
+  { href: "/admin/staging", label: "Staging", minRole: "admin" },
+  { href: "/admin/profile", label: "My profile", minRole: "editor" },
 ] as const;
 
 export default async function AdminLayout({

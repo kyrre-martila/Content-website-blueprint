@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireMinimumAdminRole } from "../../auth";
+import { requireMinimumAdminRole, requireSuperAdmin } from "../../auth";
 import { buildForwardHeaders, getApiBase } from "../../utils";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_: Request, { params }: Params) {
-  const denied = await requireMinimumAdminRole();
+  const denied = await requireMinimumAdminRole("admin");
   if (denied) return denied;
 
   const { id } = await params;
@@ -28,7 +28,7 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const denied = await requireMinimumAdminRole();
+  const denied = await requireSuperAdmin();
   if (denied) return denied;
 
   const { id } = await params;
@@ -53,7 +53,7 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_: Request, { params }: Params) {
-  const denied = await requireMinimumAdminRole();
+  const denied = await requireSuperAdmin();
   if (denied) return denied;
 
   const { id } = await params;
