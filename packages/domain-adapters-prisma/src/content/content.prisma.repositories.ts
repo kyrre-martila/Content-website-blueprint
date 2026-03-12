@@ -243,36 +243,106 @@ function mapContentItem(item: {
   };
 }
 
+/**
+ * Build a content tree in memory from the flat list returned by Prisma.
+ *
+ * This is intentionally in-memory for blueprint-scale usage: current content
+ * collections are expected to be small enough to load in one query, while this
+ * keeps the logic database-agnostic and easier to reason about than recursive
+ * SQL/CTE queries. The implementation below is defensive against inconsistent
+ * data (missing parents, duplicates, and parent cycles).
+ */
 function mapContentItemTree(items: ContentItem[]): ContentItemTreeNode[] {
   const nodes = new Map<string, ContentItemTreeNode>();
-  const roots: ContentItemTreeNode[] = [];
-
+  const parentById = new Map<string, string | null>();
   for (const item of items) {
-    nodes.set(item.id, { ...item, children: [] });
-  }
-
-  for (const item of items) {
-    const node = nodes.get(item.id)!;
-    if (!item.parentId) {
-      roots.push(node);
+    // Guard against duplicate source rows to keep each item in the tree once.
+    if (nodes.has(item.id)) {
       continue;
     }
 
-    const parent = nodes.get(item.parentId);
-    if (!parent) {
+    nodes.set(item.id, { ...item, children: [] });
+    parentById.set(item.id, item.parentId);
+  }
+
+  // Parent pointer DFS (each node has at most one parent) to detect cycles.
+  const visitState = new Map<string, 0 | 1 | 2>();
+  const cycleNodeIds = new Set<string>();
+
+  const detectCycle = (id: string, path: string[]) => {
+    const state = visitState.get(id) ?? 0;
+    if (state === 2) {
+      return;
+    }
+
+    if (state === 1) {
+      const cycleStart = path.indexOf(id);
+      if (cycleStart >= 0) {
+        for (const cycleId of path.slice(cycleStart)) {
+          cycleNodeIds.add(cycleId);
+        }
+      }
+      return;
+    }
+
+    visitState.set(id, 1);
+    path.push(id);
+
+    const parentId = parentById.get(id);
+    if (parentId && nodes.has(parentId) && parentId !== id) {
+      detectCycle(parentId, path);
+    }
+
+    path.pop();
+    visitState.set(id, 2);
+  };
+
+  for (const id of nodes.keys()) {
+    detectCycle(id, []);
+  }
+
+  const attachedNodeIds = new Set<string>();
+  const roots: ContentItemTreeNode[] = [];
+
+  for (const id of nodes.keys()) {
+    const node = nodes.get(id)!;
+    const parentId = parentById.get(id);
+
+    // Any broken relationship is treated as a root-level item rather than
+    // dropping content from the response.
+    const hasInvalidParent = parentId ? !nodes.has(parentId) : false;
+    const isSelfCycle = parentId === id;
+    const isCycle = cycleNodeIds.has(id);
+
+    if (!parentId || hasInvalidParent || isSelfCycle || isCycle) {
       roots.push(node);
+      attachedNodeIds.add(id);
+      continue;
+    }
+
+    const parent = nodes.get(parentId)!;
+    if (attachedNodeIds.has(id)) {
       continue;
     }
 
     parent.children.push(node);
+    attachedNodeIds.add(id);
   }
 
+  // Deterministic ordering: explicit sortOrder, then recency, then id to avoid
+  // unstable ordering when values tie.
   const sortTree = (entries: ContentItemTreeNode[]) => {
     entries.sort((a, b) => {
       if (a.sortOrder !== b.sortOrder) {
         return a.sortOrder - b.sortOrder;
       }
-      return b.createdAt.getTime() - a.createdAt.getTime();
+
+      const createdAtDiff = b.createdAt.getTime() - a.createdAt.getTime();
+      if (createdAtDiff !== 0) {
+        return createdAtDiff;
+      }
+
+      return a.id.localeCompare(b.id);
     });
 
     for (const entry of entries) {
