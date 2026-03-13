@@ -1,5 +1,5 @@
 import { getMe } from "../../../../lib/me";
-import { hasRole } from "../../../../lib/rbac";
+import { hasMinimumRole, hasRole } from "../../../../lib/rbac";
 import { ContentAdminClient } from "./ContentAdminClient";
 import {
   listAdminContentItems,
@@ -9,6 +9,7 @@ import {
 export default async function AdminContentPage() {
   const me = await getMe();
   const canManageContentTypes = hasRole(me?.user?.role, "super_admin");
+  const canUseMediaLibrary = hasMinimumRole(me?.user?.role, "admin");
 
   const contentTypes = await listAdminContentTypes();
   const groupedItems = await Promise.all(
@@ -23,6 +24,7 @@ export default async function AdminContentPage() {
       canManageContentTypes={canManageContentTypes}
       initialContentTypes={contentTypes}
       initialGroupedItems={groupedItems}
+      canUseMediaLibrary={canUseMediaLibrary}
     />
   );
 }
