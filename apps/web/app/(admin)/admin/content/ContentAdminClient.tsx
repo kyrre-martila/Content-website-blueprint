@@ -14,6 +14,7 @@ type Props = {
     contentTypeId: string;
     items: AdminContentItem[];
   }>;
+  canUseMediaLibrary: boolean;
 };
 
 type ContentItemDraft = {
@@ -35,6 +36,24 @@ type ContentTypeDraft = {
   description: string;
   isPublic: boolean;
   fields: AdminContentFieldDefinition[];
+};
+
+type ReferenceOption = {
+  id: string;
+  label: string;
+  hint?: string;
+};
+
+type AdminPageOption = {
+  id: string;
+  title: string;
+  slug: string;
+};
+
+type AdminMediaOption = {
+  id: string;
+  alt?: string | null;
+  url: string;
 };
 
 const FIELD_TYPE_LABELS: Record<AdminContentFieldDefinition["type"], string> = {
@@ -68,11 +87,35 @@ function fieldTypeInputType(type: AdminContentFieldDefinition["type"]) {
   return "text";
 }
 
-function parseMultiReference(value: string): string[] {
+function parseReferenceValues(value: string): string[] {
   return value
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function updateReferenceValue(
+  currentValue: string,
+  selectedId: string,
+  checked: boolean,
+): string {
+  const current = new Set(parseReferenceValues(currentValue));
+  if (checked) {
+    current.add(selectedId);
+  } else {
+    current.delete(selectedId);
+  }
+
+  return Array.from(current).join(", ");
+}
+
+function relationTargetTypeLabel(field: AdminContentFieldDefinition): string {
+  if (field.type === "media") return "media item";
+  if (field.type === "page") return "page";
+  if (field.type === "contentItem") return "content entry";
+  return field.relation?.targetSlug
+    ? `${field.relation.targetSlug} entry`
+    : "related entry";
 }
 
 function isMultipleReferenceField(field: AdminContentFieldDefinition): boolean {
@@ -128,7 +171,7 @@ function buildDataFromFields(
     }
 
     if (isMultipleReferenceField(field)) {
-      data[field.key] = parseMultiReference(value);
+      data[field.key] = parseReferenceValues(value);
       return;
     }
 
@@ -288,11 +331,121 @@ function FieldDefinitionEditor({
   );
 }
 
+function ContentFieldInput({
+  field,
+  value,
+  onChange,
+  options,
+  canUseMediaLibrary,
+}: {
+  field: AdminContentFieldDefinition;
+  value: string;
+  onChange: (nextValue: string) => void;
+  options: ReferenceOption[];
+  canUseMediaLibrary: boolean;
+}) {
+  const referenceValues = parseReferenceValues(value);
+  const isReferenceField =
+    field.type === "relation" ||
+    field.type === "media" ||
+    field.type === "contentItem" ||
+    field.type === "page";
+
+  if (field.type === "textarea" || field.type === "rich_text") {
+    return (
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={field.required}
+        rows={field.type === "rich_text" ? 6 : 3}
+        placeholder={field.placeholder}
+      />
+    );
+  }
+
+  if (field.type === "boolean") {
+    return (
+      <select
+        value={value || "false"}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="false">No</option>
+        <option value="true">Yes</option>
+      </select>
+    );
+  }
+
+  if (isReferenceField && options.length > 0) {
+    if (field.type === "media" && !canUseMediaLibrary) {
+      return (
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required={field.required}
+          placeholder={field.placeholder || "Media ID"}
+        />
+      );
+    }
+
+    if (field.relation?.multiple) {
+      return (
+        <div>
+          {options.map((option) => {
+            const checked = referenceValues.includes(option.id);
+            return (
+              <label key={option.id}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) =>
+                    onChange(
+                      updateReferenceValue(value, option.id, e.target.checked),
+                    )
+                  }
+                />
+                <span>{option.label}</span>
+                {option.hint ? <small>{option.hint}</small> : null}
+              </label>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <select
+        value={referenceValues[0] ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">Select {relationTargetTypeLabel(field)}</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  return (
+    <input
+      type={fieldTypeInputType(field.type)}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      required={field.required}
+      placeholder={field.placeholder}
+    />
+  );
+}
+
 function ContentItemEditor({
   item,
   contentType,
   onSave,
   onDelete,
+  getReferenceOptions,
+  canUseMediaLibrary,
 }: {
   item: AdminContentItem;
   contentType: AdminContentType;
@@ -309,6 +462,10 @@ function ContentItemEditor({
     data: Record<string, unknown>;
   }) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  getReferenceOptions: (
+    field: AdminContentFieldDefinition,
+  ) => ReferenceOption[];
+  canUseMediaLibrary: boolean;
 }) {
   const [title, setTitle] = React.useState(item.title);
   const [slug, setSlug] = React.useState(item.slug);
@@ -404,53 +561,26 @@ function ContentItemEditor({
           <label key={field.key}>
             {getFieldLabel(field)}
             {field.description ? <small>{field.description}</small> : null}
-            {field.type === "textarea" || field.type === "rich_text" ? (
-              <textarea
-                value={values[field.key] ?? ""}
-                onChange={(e) =>
-                  setValues((curr) => ({
-                    ...curr,
-                    [field.key]: e.target.value,
-                  }))
-                }
-                required={field.required}
-                rows={field.type === "rich_text" ? 6 : 3}
-                placeholder={field.placeholder}
-              />
-            ) : field.type === "boolean" ? (
-              <select
-                value={values[field.key] ?? "false"}
-                onChange={(e) =>
-                  setValues((curr) => ({
-                    ...curr,
-                    [field.key]: e.target.value,
-                  }))
-                }
-              >
-                <option value="false">No</option>
-                <option value="true">Yes</option>
-              </select>
-            ) : (
-              <input
-                type={fieldTypeInputType(field.type)}
-                value={values[field.key] ?? ""}
-                onChange={(e) =>
-                  setValues((curr) => ({
-                    ...curr,
-                    [field.key]: e.target.value,
-                  }))
-                }
-                required={field.required}
-                placeholder={field.placeholder}
-              />
-            )}
-            {field.type === "relation" ||
-            field.type === "media" ||
-            field.type === "contentItem" ||
-            field.type === "page" ? (
+            <ContentFieldInput
+              field={field}
+              value={values[field.key] ?? ""}
+              onChange={(nextValue) =>
+                setValues((curr) => ({
+                  ...curr,
+                  [field.key]: nextValue,
+                }))
+              }
+              options={getReferenceOptions(field)}
+              canUseMediaLibrary={canUseMediaLibrary}
+            />
+            {(field.type === "relation" ||
+              field.type === "media" ||
+              field.type === "contentItem" ||
+              field.type === "page") &&
+            getReferenceOptions(field).length === 0 ? (
               <small>
-                Use one or more reference IDs. For multiple values, separate IDs
-                with commas.
+                No selectable {relationTargetTypeLabel(field)} records are
+                available yet.
               </small>
             ) : null}
           </label>
@@ -473,6 +603,7 @@ export function ContentAdminClient({
   canManageContentTypes,
   initialContentTypes,
   initialGroupedItems,
+  canUseMediaLibrary,
 }: Props) {
   const [contentTypes, setContentTypes] = React.useState(initialContentTypes);
   const [contentTypeDrafts, setContentTypeDrafts] = React.useState<
@@ -507,12 +638,91 @@ export function ContentAdminClient({
   });
   const [status, setStatus] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [pages, setPages] = React.useState<AdminPageOption[]>([]);
+  const [media, setMedia] = React.useState<AdminMediaOption[]>([]);
 
   const selectedType =
     contentTypes.find((type) => type.id === selectedTypeId) ?? null;
   const selectedItems = selectedType
     ? (itemsByType.get(selectedType.id) ?? [])
     : [];
+
+  React.useEffect(() => {
+    let active = true;
+
+    void fetch("/api/admin/pages", { cache: "no-store" })
+      .then((res) =>
+        res.ok
+          ? (res.json() as Promise<AdminPageOption[]>)
+          : Promise.resolve([] as AdminPageOption[]),
+      )
+      .then((items) => {
+        if (active) {
+          setPages(items);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setPages([]);
+        }
+      });
+
+    if (canUseMediaLibrary) {
+      void fetch("/api/admin/media", { cache: "no-store" })
+        .then((res) =>
+          res.ok
+            ? (res.json() as Promise<AdminMediaOption[]>)
+            : Promise.resolve([] as AdminMediaOption[]),
+        )
+        .then((items) => {
+          if (active) {
+            setMedia(items);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setMedia([]);
+          }
+        });
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [canUseMediaLibrary]);
+
+  function getReferenceOptions(
+    field: AdminContentFieldDefinition,
+  ): ReferenceOption[] {
+    if (field.type === "page") {
+      return pages.map((page) => ({
+        id: page.id,
+        label: page.title,
+        hint: `/${page.slug}`,
+      }));
+    }
+
+    if (field.type === "media") {
+      return media.map((item) => ({
+        id: item.id,
+        label: item.alt?.trim() || item.url,
+        hint: item.url,
+      }));
+    }
+
+    const targetSlug = field.relation?.targetSlug;
+    if (!targetSlug) return [];
+
+    const targetType = contentTypes.find((entry) => entry.slug === targetSlug);
+    if (!targetType) return [];
+
+    const options = itemsByType.get(targetType.id) ?? [];
+    return options.map((item) => ({
+      id: item.id,
+      label: item.title,
+      hint: item.slug,
+    }));
+  }
 
   async function refreshItems(contentTypeId: string) {
     const res = await fetch(
@@ -565,7 +775,13 @@ export function ContentAdminClient({
     }));
     setCreateDrafts((curr) => ({ ...curr, [next.id]: emptyDraft(next) }));
     setSelectedTypeId(next.id);
-    setNewTypeDraft({ name: "", slug: "", description: "", isPublic: true, fields: [] });
+    setNewTypeDraft({
+      name: "",
+      slug: "",
+      description: "",
+      isPublic: true,
+      fields: [],
+    });
     setStatus("Content model saved.");
   }
 
@@ -662,11 +878,14 @@ export function ContentAdminClient({
   return (
     <section className="admin-pages">
       <h1 className="hero__title">Content editor</h1>
-      <p>Choose a content area and edit entries using guided fields.</p>
+      <p>
+        Day-to-day editing happens below. Schema and field design tools are
+        separated into a protected setup area.
+      </p>
       {error && <p>{error}</p>}
       {status && <p>{status}</p>}
 
-      <h2>Content areas</h2>
+      <h2>Content editing</h2>
       <div>
         {contentTypes.map((type) => (
           <button
@@ -679,9 +898,16 @@ export function ContentAdminClient({
         ))}
       </div>
 
+      {!canManageContentTypes && (
+        <p>
+          Content model setup is restricted to super admins. You can safely
+          focus on editing entries.
+        </p>
+      )}
+
       {canManageContentTypes && (
         <>
-          <h2>Content model setup</h2>
+          <h2>Schema and content model setup</h2>
           {contentTypes.map((type) => {
             const draft =
               contentTypeDrafts[type.id] ?? toContentTypeDraft(type);
@@ -893,6 +1119,8 @@ export function ContentAdminClient({
               contentType={selectedType}
               onSave={(payload) => saveContentItem(payload)}
               onDelete={deleteContentItem}
+              getReferenceOptions={getReferenceOptions}
+              canUseMediaLibrary={canUseMediaLibrary}
             />
           ))}
 
@@ -949,71 +1177,32 @@ export function ContentAdminClient({
               <label key={field.key}>
                 {getFieldLabel(field)}
                 {field.description ? <small>{field.description}</small> : null}
-                {field.type === "textarea" || field.type === "rich_text" ? (
-                  <textarea
-                    value={createDraft.values[field.key] ?? ""}
-                    onChange={(e) =>
-                      setCreateDrafts((curr) => ({
-                        ...curr,
-                        [selectedType.id]: {
-                          ...createDraft,
-                          values: {
-                            ...createDraft.values,
-                            [field.key]: e.target.value,
-                          },
+                <ContentFieldInput
+                  field={field}
+                  value={createDraft.values[field.key] ?? ""}
+                  onChange={(nextValue) =>
+                    setCreateDrafts((curr) => ({
+                      ...curr,
+                      [selectedType.id]: {
+                        ...createDraft,
+                        values: {
+                          ...createDraft.values,
+                          [field.key]: nextValue,
                         },
-                      }))
-                    }
-                    rows={field.type === "rich_text" ? 6 : 3}
-                    placeholder={field.placeholder}
-                    required={field.required}
-                  />
-                ) : field.type === "boolean" ? (
-                  <select
-                    value={createDraft.values[field.key] ?? "false"}
-                    onChange={(e) =>
-                      setCreateDrafts((curr) => ({
-                        ...curr,
-                        [selectedType.id]: {
-                          ...createDraft,
-                          values: {
-                            ...createDraft.values,
-                            [field.key]: e.target.value,
-                          },
-                        },
-                      }))
-                    }
-                  >
-                    <option value="false">No</option>
-                    <option value="true">Yes</option>
-                  </select>
-                ) : (
-                  <input
-                    type={fieldTypeInputType(field.type)}
-                    value={createDraft.values[field.key] ?? ""}
-                    onChange={(e) =>
-                      setCreateDrafts((curr) => ({
-                        ...curr,
-                        [selectedType.id]: {
-                          ...createDraft,
-                          values: {
-                            ...createDraft.values,
-                            [field.key]: e.target.value,
-                          },
-                        },
-                      }))
-                    }
-                    placeholder={field.placeholder}
-                    required={field.required}
-                  />
-                )}
-                {field.type === "relation" ||
-                field.type === "media" ||
-                field.type === "contentItem" ||
-                field.type === "page" ? (
+                      },
+                    }))
+                  }
+                  options={getReferenceOptions(field)}
+                  canUseMediaLibrary={canUseMediaLibrary}
+                />
+                {(field.type === "relation" ||
+                  field.type === "media" ||
+                  field.type === "contentItem" ||
+                  field.type === "page") &&
+                getReferenceOptions(field).length === 0 ? (
                   <small>
-                    Use one or more reference IDs. For multiple values, separate
-                    IDs with commas.
+                    No selectable {relationTargetTypeLabel(field)} records are
+                    available yet.
                   </small>
                 ) : null}
               </label>
