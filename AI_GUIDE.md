@@ -33,7 +33,9 @@ Use these models first before introducing ad-hoc storage patterns.
 ## 4) Media/storage architecture
 
 - Media metadata lives in domain repositories.
-- Binary upload/delete is abstracted behind `MediaStorageProvider` (local/S3/R2/Supabase provider implementations).
+- Binary upload/delete is abstracted behind `MediaStorageProvider`.
+- The local filesystem provider is implemented by default; S3/R2/Supabase providers are extension points that require project-specific implementation.
+- Upload scanning is intentionally pluggable through `MediaUploadScanner` (default is a no-op scanner).
 - Web UI should consume media URLs/API responses, not touch storage implementation details.
 
 ## 5) Styling system expectations
@@ -81,4 +83,3 @@ If unsure, choose the option that is **more reusable, typed, and content-model-d
   3. Not found
 - Legacy `/page/[slug]` should remain redirect-only toward canonical page paths (`/${slug}` or `/` for `home`) and should not become a second canonical surface.
 - Redirect payloads from content APIs are internal-path only; invalid targets must be ignored and treated as unresolved content.
-

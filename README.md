@@ -15,6 +15,12 @@ This repository is a blueprint, not a finished product. The architecture and def
 - **Implemented now:** local auth with JWT access tokens + server-side `Session` validation, cookie-first web auth, role-aware admin area, Prisma/Postgres content model, migrations + seed workflow, and production-oriented API/web deployment scaffolding.
 - **Planned/customize per project:** identity provider integrations (OAuth/SSO), refresh-token/rotation strategy (if needed), richer editorial workflows/approval flows, object-storage provider implementations (S3/R2/Supabase), and tenant-specific session hardening.
 
+### Media storage and upload status
+
+- **Implemented now:** local filesystem media storage (`/uploads`), content-based file type validation, metadata extraction, upload size limits, and a pluggable upload scanner hook (`MediaUploadScanner`) with a safe no-op default.
+- **Extension points only (not shipped end-to-end):** S3, R2, and Supabase media providers.
+- **Startup safety:** `MEDIA_STORAGE_PROVIDER` defaults to `local`. Any non-local value currently fails startup with a clear error until a real provider implementation is added.
+
 ## One root-level workflow
 
 ```bash
