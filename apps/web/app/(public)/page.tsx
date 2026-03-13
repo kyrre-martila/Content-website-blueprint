@@ -22,6 +22,10 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
 
+  const canonicalUrl =
+    content.canonicalUrl?.trim() ||
+    new URL("/", `${siteConfig.siteUrl}/`).toString();
+
   const title = withTitleSuffix(
     content.seoTitle?.trim() || content.title,
     siteConfig.defaultTitleSuffix,
@@ -30,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description: content.seoDescription?.trim() || undefined,
-    alternates: { canonical: new URL("/", `${siteConfig.siteUrl}/`).toString() },
+    alternates: { canonical: canonicalUrl },
     robots: content.noIndex ? { index: false, follow: true } : undefined,
   };
 }

@@ -56,7 +56,9 @@ export async function generateMetadata({
   }
 
   const basePath = getPagePath(page.slug) ?? "/";
-  const canonicalUrl = new URL(basePath, `${siteConfig.siteUrl}/`).toString();
+  const canonicalUrl =
+    page.canonicalUrl?.trim() ||
+    new URL(basePath, `${siteConfig.siteUrl}/`).toString();
   const title = withTitleSuffix(
     page.seoTitle?.trim() || page.title,
     siteConfig.defaultTitleSuffix,

@@ -21,10 +21,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const pageEntries = pages
     .filter((page) => !page.noIndex)
-    .map((page) => ({
-      url: normalizeUrl(baseUrl, getPagePath(page.slug) ?? "/"),
-      lastModified: new Date(page.updatedAt),
-    }));
+    .map((page) => {
+      const fallbackPath = getPagePath(page.slug) ?? "/";
+
+      return {
+        url: page.canonicalUrl?.trim() || normalizeUrl(baseUrl, fallbackPath),
+        lastModified: new Date(page.updatedAt),
+      };
+    });
 
   const contentEntries = contentItems
     .filter((item) => !item.noIndex)
@@ -32,7 +36,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const fallbackPath = getContentItemPath(item.contentTypeSlug, item.slug);
 
       return {
-        url: normalizeUrl(baseUrl, fallbackPath ?? `/${item.contentTypeSlug}`),
+        url:
+          item.canonicalUrl?.trim() ||
+          normalizeUrl(baseUrl, fallbackPath ?? `/${item.contentTypeSlug}`),
         lastModified: new Date(item.updatedAt),
       };
     });
