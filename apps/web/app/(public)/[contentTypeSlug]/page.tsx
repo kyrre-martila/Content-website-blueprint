@@ -32,6 +32,9 @@ export async function generateMetadata({
   if (pageResolution.page) {
     const page = pageResolution.page;
     const pagePath = getPagePath(page.slug) ?? `/${contentTypeSlug}`;
+    const canonicalUrl =
+      page.canonicalUrl?.trim() ||
+      new URL(pagePath, `${siteConfig.siteUrl}/`).toString();
     const title = withTitleSuffix(
       page.seoTitle?.trim() || page.title,
       siteConfig.defaultTitleSuffix,
@@ -40,9 +43,7 @@ export async function generateMetadata({
     return {
       title,
       description: page.seoDescription?.trim() || undefined,
-      alternates: {
-        canonical: new URL(pagePath, `${siteConfig.siteUrl}/`).toString(),
-      },
+      alternates: { canonical: canonicalUrl },
       robots: page.noIndex ? { index: false, follow: true } : undefined,
     };
   }

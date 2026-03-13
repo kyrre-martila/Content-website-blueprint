@@ -1080,7 +1080,8 @@ export async function getSitemapContentItems(): Promise<
     .flat()
     .filter((item) =>
       Boolean(
-        item.canonicalUrl || contentItemPath(item.contentTypeSlug, item.slug),
+        item.canonicalUrl?.trim() ||
+          contentItemPath(item.contentTypeSlug, item.slug),
       ),
     );
 }

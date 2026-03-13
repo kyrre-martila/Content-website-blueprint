@@ -30,10 +30,11 @@ export async function generateMetadata({
     return { title: "Not found" };
   }
 
-  const canonicalUrl = new URL(
-    getContentItemPath(contentTypeSlug, item.slug) ?? `/${contentTypeSlug}`,
-    `${siteConfig.siteUrl}/`,
-  ).toString();
+  const fallbackPath =
+    getContentItemPath(contentTypeSlug, item.slug) ?? `/${contentTypeSlug}`;
+  const canonicalUrl =
+    item.canonicalUrl?.trim() ||
+    new URL(fallbackPath, `${siteConfig.siteUrl}/`).toString();
   const title = withTitleSuffix(item.title, siteConfig.defaultTitleSuffix);
 
   return {
