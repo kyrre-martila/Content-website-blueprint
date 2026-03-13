@@ -2,6 +2,8 @@ import { PrismaService } from "../prisma/prisma.service";
 
 type Env = Record<string, string | undefined>;
 
+const SUPPORTED_MEDIA_STORAGE_PROVIDERS = ["local"] as const;
+
 const DEVELOPMENT_CORS_DEFAULT_ORIGINS = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
@@ -27,6 +29,18 @@ export function validateRequiredEnvVariables(env: Env = process.env) {
   if (missing.length > 0) {
     throw new Error(
       `Missing required environment variables: ${missing.join(", ")}. Please set these values in your .env file before starting the API.`,
+    );
+  }
+
+  const requestedProvider = env.MEDIA_STORAGE_PROVIDER?.trim().toLowerCase();
+  if (
+    requestedProvider &&
+    !SUPPORTED_MEDIA_STORAGE_PROVIDERS.includes(
+      requestedProvider as (typeof SUPPORTED_MEDIA_STORAGE_PROVIDERS)[number],
+    )
+  ) {
+    throw new Error(
+      `Unsupported MEDIA_STORAGE_PROVIDER \"${requestedProvider}\". This blueprint currently supports only \"local\". Providers \"s3\", \"r2\", and \"supabase\" are extension points and must be implemented before use.`,
     );
   }
 }

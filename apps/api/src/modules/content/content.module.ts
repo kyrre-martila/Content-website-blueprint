@@ -21,6 +21,7 @@ import {
   MEDIA_UPLOAD_SCANNER,
   NoopMediaUploadScanner,
 } from "./media-upload-scanner";
+import { resolveMediaStorageProvider } from "./media-storage-provider.config";
 
 @Module({
   imports: [AuthModule],
@@ -68,7 +69,13 @@ import {
     },
     {
       provide: "MediaStorageProvider",
-      useClass: LocalFileStorageProvider,
+      useFactory: () => {
+        const selectedProvider = resolveMediaStorageProvider();
+        switch (selectedProvider) {
+          case "local":
+            return new LocalFileStorageProvider();
+        }
+      },
     },
     {
       provide: MEDIA_UPLOAD_SCANNER,

@@ -29,6 +29,18 @@ describe("startup checks", () => {
         }),
       ).not.toThrow();
     });
+
+    it("throws when MEDIA_STORAGE_PROVIDER is set to an unsupported provider", () => {
+      expect(() =>
+        validateRequiredEnvVariables({
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/appdb",
+          JWT_SECRET: "jwt-secret",
+          COOKIE_SECRET: "cookie-secret",
+          ENCRYPTION_KEY: "encryption-key",
+          MEDIA_STORAGE_PROVIDER: "s3",
+        }),
+      ).toThrow('Unsupported MEDIA_STORAGE_PROVIDER "s3"');
+    });
   });
 
   describe("resolveCorsOrigins", () => {
