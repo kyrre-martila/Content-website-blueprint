@@ -23,4 +23,15 @@ export class MailerService {
       text: `Sign in: ${url}`,
     });
   }
+
+  async sendPasswordResetLink(to: string, url: string) {
+    const from = process.env.SMTP_FROM || "Blueprint <no-reply@local.test>";
+    await this.transporter.sendMail({
+      from,
+      to,
+      subject: "Reset your Blueprint password",
+      html: `<p>We received a request to reset your password.</p><p><a href="${url}">Reset password</a></p><p>If you did not request this, you can safely ignore this email.</p>`,
+      text: `Reset your password: ${url}`,
+    });
+  }
 }

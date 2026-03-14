@@ -79,3 +79,54 @@ export async function register(input: {
 
   return handleResponse(res);
 }
+
+export async function forgotPassword(input: { email: string }): Promise<{ success: boolean }> {
+  const res = await apiFetch("/auth/forgot-password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!res.ok) {
+    throw new AuthError("Could not send reset link", res.status);
+  }
+
+  if (!contentType.includes("application/json")) {
+    return { success: true };
+  }
+
+  return (await res.json()) as { success: boolean };
+}
+
+export async function resetPassword(input: { token: string; password: string }): Promise<{ success: boolean }> {
+  const res = await apiFetch("/auth/reset-password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!res.ok) {
+    let message = "Could not reset password";
+    if (contentType.includes("application/json")) {
+      try {
+        const data = await res.json();
+        message = data.message || data.error || message;
+      } catch {
+        // ignore
+      }
+    }
+    throw new AuthError(message, res.status);
+  }
+
+  if (!contentType.includes("application/json")) {
+    return { success: true };
+  }
+
+  return (await res.json()) as { success: boolean };
+}

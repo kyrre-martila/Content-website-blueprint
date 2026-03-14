@@ -6,8 +6,9 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
-import { randomUUID } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 
+import { MailerService } from "../mailer/mailer.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SessionRepository } from "./session.repository";
 
@@ -53,7 +54,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly sessions: SessionRepository,
-    config: ConfigService,
+    private readonly mailer: MailerService,
+    private readonly config: ConfigService,
   ) {
     const configuredRounds = Number(config.get("BCRYPT_SALT_ROUNDS"));
     this.saltRounds = Number.isFinite(configuredRounds) && configuredRounds > 0
@@ -132,6 +134,57 @@ export class AuthService {
     return { user: this.toPublicUser(user), accessToken };
   }
 
+
+
+  async requestPasswordReset(input: { email: string }): Promise<void> {
+    const email = input.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return;
+    }
+
+    const resetToken = this.generateMagicLinkToken();
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
+
+    await this.prisma.magicLink.create({
+      data: {
+        email,
+        token: resetToken,
+        expiresAt,
+      },
+    });
+
+    const resetUrl = this.buildPasswordResetUrl(resetToken);
+    await this.mailer.sendPasswordResetLink(email, resetUrl);
+  }
+
+  async resetPassword(input: { token: string; password: string }): Promise<void> {
+    const token = input.token.trim();
+    const magicLink = await this.prisma.magicLink.findUnique({ where: { token } });
+
+    if (!magicLink || magicLink.usedAt || magicLink.expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { email: magicLink.email } });
+    if (!user) {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    const passwordHash = await this.hashPassword(input.password);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      }),
+      this.prisma.magicLink.update({
+        where: { id: magicLink.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+  }
+
   async authenticate(token: string): Promise<{ payload: JwtPayload; user: PublicUser }> {
     const payload = this.decodeToken(token);
     if (!payload) {
@@ -202,6 +255,18 @@ export class AuthService {
     });
 
     return accessToken;
+  }
+
+
+
+  private generateMagicLinkToken(): string {
+    return randomBytes(32).toString("hex");
+  }
+
+  private buildPasswordResetUrl(token: string): string {
+    const appUrl = this.config.get<string>("APP_URL") ?? "http://localhost:3000";
+    const base = appUrl.endsWith("/") ? appUrl.slice(0, -1) : appUrl;
+    return `${base}/auth/reset-password?token=${encodeURIComponent(token)}`;
   }
 
   private toPublicUser(user: PrismaUser): PublicUser {

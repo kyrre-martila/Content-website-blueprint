@@ -97,7 +97,7 @@ export default function LoginPage() {
                 </label>
                 <a
                   className="auth__link auth__link--muted"
-                  href="/forgot-password"
+                  href="/auth/forgot-password"
                 >
                   Forgot password?
                 </a>
