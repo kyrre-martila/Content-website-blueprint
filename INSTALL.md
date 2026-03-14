@@ -125,3 +125,12 @@ By default:
 For homelab/single-VM/simple-VPS deployments, local storage is the recommended mode. Persist and back up the `uploads/` directory as part of normal operations.
 
 Upload scanning is pluggable via the `MediaUploadScanner` interface. The default scanner is a no-op; replace it with a custom implementation if your environment requires antivirus or policy scanning.
+
+
+## Environment parity notes (dev vs staging/prod)
+
+- `production` and `staging` are treated as hardened environments.
+- In hardened environments, set explicit `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_API_URL`; web startup fails fast if they are missing.
+- CSRF fallback cookie injection in web middleware is disabled in staging/production.
+- API cookie + CSRF cookies are always `Secure` in staging/production.
+- Keep `DEPLOY_ENV=development` locally to preserve local-only conveniences.

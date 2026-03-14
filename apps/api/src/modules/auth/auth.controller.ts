@@ -19,6 +19,7 @@ import { IsEmail, IsOptional, IsString, MinLength } from "class-validator";
 import type { Request, Response } from "express";
 
 import { readAccessToken } from "../../common/auth/read-access-token";
+import { isHardenedEnvironment } from "../../config/runtime-env";
 import { AuthService, type PublicUser } from "./auth.service";
 
 class PublicUserDto {
@@ -142,7 +143,7 @@ export class AuthController {
   }
 
   private isSecureRequest(req: Request): boolean {
-    if (process.env.NODE_ENV === "production") {
+    if (isHardenedEnvironment()) {
       return true;
     }
     const forwardedProto = req.headers["x-forwarded-proto"];

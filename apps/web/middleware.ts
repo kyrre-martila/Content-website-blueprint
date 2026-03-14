@@ -13,17 +13,29 @@ const csp = [
   `connect-src 'self' ${apiOrigin}`,
 ].join("; ");
 
-const isProduction = process.env.NODE_ENV === "production";
+function normalizeEnvironmentValue(value: string | undefined): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+const deploymentEnvironment =
+  normalizeEnvironmentValue(process.env.DEPLOY_ENV) ||
+  normalizeEnvironmentValue(process.env.APP_ENV) ||
+  normalizeEnvironmentValue(process.env.NODE_ENV) ||
+  "development";
+
+const isHardenedEnvironment =
+  deploymentEnvironment === "production" || deploymentEnvironment === "staging";
 const isCi = process.env.CI === "true" || process.env.PLAYWRIGHT === "true";
+const allowCsrfFallbackToken = !isHardenedEnvironment;
 
 export function middleware(req: NextRequest) {
   const res = NextResponse.next();
 
   res.headers.set("Content-Security-Policy", csp);
 
-  if (!isProduction) {
+  if (allowCsrfFallbackToken) {
     const existingValue = req.cookies.get("XSRF-TOKEN")?.value;
-    const fallbackValue = isCi || !isProduction ? "test-csrf-token" : undefined;
+    const fallbackValue = isCi ? "test-csrf-token" : undefined;
     const value = existingValue ?? fallbackValue;
 
     if (value) {

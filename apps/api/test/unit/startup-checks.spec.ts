@@ -57,7 +57,19 @@ describe("startup checks", () => {
           NODE_ENV: "production",
           API_CORS_ORIGINS: "",
         }),
-      ).toThrow("Missing required API_CORS_ORIGINS for production startup");
+      ).toThrow("Missing required API_CORS_ORIGINS for hardened startup (production/staging)");
+    });
+
+
+
+    it("throws in staging when API_CORS_ORIGINS is missing", () => {
+      expect(() =>
+        resolveCorsOrigins({
+          NODE_ENV: "production",
+          DEPLOY_ENV: "staging",
+          API_CORS_ORIGINS: "",
+        }),
+      ).toThrow("Missing required API_CORS_ORIGINS for hardened startup (production/staging)");
     });
 
     it("falls back to local development origins outside production", () => {

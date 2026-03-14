@@ -1,7 +1,7 @@
 import { PrismaService } from "../prisma/prisma.service";
 import { assertMediaStorageProviderSupported } from "../modules/content/media-storage-provider.config";
+import { isHardenedEnvironment, type Env } from "./runtime-env";
 
-type Env = Record<string, string | undefined>;
 
 const DEVELOPMENT_CORS_DEFAULT_ORIGINS = [
   "http://localhost:3000",
@@ -14,8 +14,12 @@ const REQUIRED_ENV_VARS = [
   "COOKIE_SECRET",
 ] as const;
 
+
+function resolveIsTestEnv(env: Env): boolean {
+  return (env.NODE_ENV ?? "").trim().toLowerCase() === "test";
+}
 export function validateRequiredEnvVariables(env: Env = process.env) {
-  if (env.NODE_ENV === "test") {
+  if (resolveIsTestEnv(env)) {
     return;
   }
 
@@ -43,9 +47,9 @@ export function resolveCorsOrigins(env: Env = process.env): string[] {
     return configuredOrigins;
   }
 
-  if (env.NODE_ENV === "production") {
+  if (isHardenedEnvironment(env)) {
     throw new Error(
-      "Missing required API_CORS_ORIGINS for production startup. Set API_CORS_ORIGINS to a comma-separated list of trusted origins (for example: https://admin.your-domain.com,https://www.your-domain.com).",
+      "Missing required API_CORS_ORIGINS for hardened startup (production/staging). Set API_CORS_ORIGINS to a comma-separated list of trusted origins (for example: https://admin.your-domain.com,https://www.your-domain.com).",
     );
   }
 

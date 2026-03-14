@@ -7,7 +7,7 @@ Security guidance for the content website blueprint (public site + admin/editor 
 - `JWT_SECRET`: HMAC signing key for access tokens. Must be 32+ characters, include at least 10 unique characters, and mix at least three character classes (lower/upper/number/symbol).
 - `COOKIE_SECRET`: Signature key for cookies/CSRF derivation. Must be 32+ characters, include at least 10 unique characters, and mix at least three character classes (lower/upper/number/symbol).
 - `COOKIE_DOMAIN`: Shared domain for web cookies (prod uses apex domain).
-- `API_CORS_ORIGINS`: Comma-separated list of allowed origins (required in production).
+- `API_CORS_ORIGINS`: Comma-separated list of allowed origins (required in hardened envs: production and staging).
 - `ENCRYPTION_KEY` is no longer startup-required because field-level encryption is not wired in this blueprint yet; add and enforce it only when encrypted-at-rest fields are implemented.
 
 ## Cookie Policy
@@ -26,7 +26,7 @@ Security guidance for the content website blueprint (public site + admin/editor 
 ## CORS Configuration
 
 - API reads `API_CORS_ORIGINS` and rejects requests whose `Origin` is missing from the allowlist.
-- In `NODE_ENV=production`, startup fails fast when `API_CORS_ORIGINS` is missing or empty; explicit trusted origins are mandatory.
+- In hardened environments (`NODE_ENV=production` or `DEPLOY_ENV/APP_ENV=staging`), startup fails fast when `API_CORS_ORIGINS` is missing or empty; explicit trusted origins are mandatory.
 - In non-production environments, API falls back to local defaults: `http://localhost:3000` and `http://127.0.0.1:3000`.
 - Update the env var during deployments to add/remove origins for public and admin website domains.
 
@@ -53,4 +53,10 @@ Security guidance for the content website blueprint (public site + admin/editor 
 ## Reverse Proxy / Tunnel Notes
 
 - API enables `trust proxy` so secure-cookie handling works correctly behind ingress/load balancers.
-- In production, CSRF cookies are marked `Secure`; requests forwarded with `x-forwarded-proto=https` are treated as secure.
+- In hardened environments (staging + production), CSRF cookies are always marked `Secure`.
+
+
+## Environment parity matrix
+
+- development/test: local CSRF fallback behavior may be enabled for developer ergonomics and CI.
+- staging/production: CSRF fallback behavior is disabled; cookies are always secure; explicit CORS/public URL configuration is required at startup.
