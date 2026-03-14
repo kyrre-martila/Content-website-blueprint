@@ -24,8 +24,12 @@ Required minimum:
 - `NEXT_PUBLIC_API_URL`
 - `NEXT_PUBLIC_API_BASE_PATH` (default `/api/v1`)
 - `API_CORS_ORIGINS`
+- `REGISTRATION_ENABLED=false`
+- `NEXT_PUBLIC_REGISTRATION_ENABLED=false`
 
 Use cryptographically random values for `JWT_SECRET` and `COOKIE_SECRET` (32+ chars, mixed character types).
+
+Public self-registration is disabled by default in this blueprint. For agency/client deployments, keep registration disabled and create users via admin workflows or invitation flows.
 
 ### Fail-fast startup behavior
 
@@ -102,12 +106,12 @@ The provided production compose setup uses Traefik as this proxy layer.
 
 `production` and `staging` are intentionally treated as hardened environments.
 
-| Environment | CSRF fallback token in web middleware | API auth cookie `Secure` | API CSRF cookies `Secure` |
-| --- | --- | --- | --- |
-| development | Allowed only for local/test convenience | Based on request/proxy (`https` only) | Based on request/proxy (`https` only) |
-| test/CI | Allowed (`test-csrf-token`) for test automation | Based on request/proxy | Based on request/proxy |
-| staging | Disabled | Always `true` | Always `true` |
-| production | Disabled | Always `true` | Always `true` |
+| Environment | CSRF fallback token in web middleware           | API auth cookie `Secure`              | API CSRF cookies `Secure`             |
+| ----------- | ----------------------------------------------- | ------------------------------------- | ------------------------------------- |
+| development | Allowed only for local/test convenience         | Based on request/proxy (`https` only) | Based on request/proxy (`https` only) |
+| test/CI     | Allowed (`test-csrf-token`) for test automation | Based on request/proxy                | Based on request/proxy                |
+| staging     | Disabled                                        | Always `true`                         | Always `true`                         |
+| production  | Disabled                                        | Always `true`                         | Always `true`                         |
 
 This prevents test/dev token shortcuts from silently leaking into staging.
 

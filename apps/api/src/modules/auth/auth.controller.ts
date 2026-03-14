@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  HttpException,
   HttpCode,
   HttpStatus,
   Post,
@@ -83,7 +84,17 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const result = await this.auth.register(dto, this.extractSessionContext(req));
+    if (!this.isRegistrationEnabled()) {
+      throw new HttpException(
+        { error: "Registration is disabled" },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const result = await this.auth.register(
+      dto,
+      this.extractSessionContext(req),
+    );
     this.writeAccessCookie(req, res, result.accessToken);
     return this.toAuthResponse(result.user);
   }
@@ -118,7 +129,11 @@ export class AuthController {
     return { success: true };
   }
 
-  private writeAccessCookie(req: Request, res: Response, accessToken: string): void {
+  private writeAccessCookie(
+    req: Request,
+    res: Response,
+    accessToken: string,
+  ): void {
     const payload = this.auth.decodeToken(accessToken);
     const expires = payload?.exp ? new Date(payload.exp * 1000) : undefined;
 
@@ -153,7 +168,10 @@ export class AuthController {
     return req.secure || proto === "https";
   }
 
-  private extractSessionContext(req: Request): { ip?: string | null; userAgent?: string | null } {
+  private extractSessionContext(req: Request): {
+    ip?: string | null;
+    userAgent?: string | null;
+  } {
     return {
       ip: req.ip,
       userAgent: req.headers["user-agent"] ?? null,
@@ -169,5 +187,9 @@ export class AuthController {
         role: user.role,
       },
     };
+  }
+
+  private isRegistrationEnabled(): boolean {
+    return this.config.get<string>("REGISTRATION_ENABLED") === "true";
   }
 }

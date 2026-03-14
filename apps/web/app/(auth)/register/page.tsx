@@ -5,6 +5,9 @@ import { useCsrfToken } from "../../../lib/api.client";
 
 type StatusTone = "info" | "success" | "error";
 
+const registrationEnabled =
+  process.env.NEXT_PUBLIC_REGISTRATION_ENABLED === "true";
+
 export default function RegisterPage() {
   const [form, setForm] = useState({
     firstName: "",
@@ -93,6 +96,12 @@ export default function RegisterPage() {
             </p>
           </header>
 
+          {!registrationEnabled && (
+            <p className="auth__message auth__message--info" role="status">
+              Registration is disabled. Please contact your administrator.
+            </p>
+          )}
+
           {status && (
             <p
               className={`auth__message auth__message--${status.tone}`}
@@ -102,113 +111,115 @@ export default function RegisterPage() {
             </p>
           )}
 
-          <form className="auth__form" onSubmit={submit} noValidate>
-            <div className="auth__field">
-              <label className="auth__label" htmlFor="firstName">
-                Fornavn
-              </label>
-              <input
-                id="firstName"
-                name="firstName"
-                className="auth__input"
-                value={form.firstName}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="auth__field">
-              <label className="auth__label" htmlFor="lastName">
-                Etternavn
-              </label>
-              <input
-                id="lastName"
-                name="lastName"
-                className="auth__input"
-                value={form.lastName}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="auth__field">
-              <label className="auth__label" htmlFor="email">
-                E-post
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                className="auth__input"
-                value={form.email}
-                onChange={handleChange}
-                autoComplete="email"
-                required
-              />
-            </div>
-
-            <div className="auth__field">
-              <label className="auth__label" htmlFor="phone">
-                Telefon (valgfritt)
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                className="auth__input"
-                value={form.phone}
-                onChange={handleChange}
-                autoComplete="tel"
-              />
-            </div>
-
-            <div className="auth__field">
-              <label className="auth__label" htmlFor="birthDate">
-                Fødselsdato
-              </label>
-              <input
-                id="birthDate"
-                type="date"
-                name="birthDate"
-                className="auth__input"
-                value={form.birthDate}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="auth__field">
-              <label className="auth__label" htmlFor="password">
-                Passord (minst 8 tegn)
-              </label>
-              <input
-                id="password"
-                type="password"
-                name="password"
-                className="auth__input"
-                value={form.password}
-                onChange={handleChange}
-                autoComplete="new-password"
-                required
-              />
-            </div>
-
-            <div className="auth__field auth__field--checkbox">
-              <label className="auth__checkbox-label" htmlFor="acceptedTerms">
+          {registrationEnabled && (
+            <form className="auth__form" onSubmit={submit} noValidate>
+              <div className="auth__field">
+                <label className="auth__label" htmlFor="firstName">
+                  Fornavn
+                </label>
                 <input
-                  id="acceptedTerms"
-                  type="checkbox"
-                  name="acceptedTerms"
-                  checked={form.acceptedTerms}
+                  id="firstName"
+                  name="firstName"
+                  className="auth__input"
+                  value={form.firstName}
                   onChange={handleChange}
                   required
                 />
-                <span>Jeg godtar vilkårene for bruk</span>
-              </label>
-            </div>
+              </div>
 
-            <button type="submit" className="auth__submit" disabled={loading}>
-              {loading ? "Sender…" : "Opprett konto"}
-            </button>
-          </form>
+              <div className="auth__field">
+                <label className="auth__label" htmlFor="lastName">
+                  Etternavn
+                </label>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  className="auth__input"
+                  value={form.lastName}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="auth__field">
+                <label className="auth__label" htmlFor="email">
+                  E-post
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  className="auth__input"
+                  value={form.email}
+                  onChange={handleChange}
+                  autoComplete="email"
+                  required
+                />
+              </div>
+
+              <div className="auth__field">
+                <label className="auth__label" htmlFor="phone">
+                  Telefon (valgfritt)
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  className="auth__input"
+                  value={form.phone}
+                  onChange={handleChange}
+                  autoComplete="tel"
+                />
+              </div>
+
+              <div className="auth__field">
+                <label className="auth__label" htmlFor="birthDate">
+                  Fødselsdato
+                </label>
+                <input
+                  id="birthDate"
+                  type="date"
+                  name="birthDate"
+                  className="auth__input"
+                  value={form.birthDate}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="auth__field">
+                <label className="auth__label" htmlFor="password">
+                  Passord (minst 8 tegn)
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  name="password"
+                  className="auth__input"
+                  value={form.password}
+                  onChange={handleChange}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+
+              <div className="auth__field auth__field--checkbox">
+                <label className="auth__checkbox-label" htmlFor="acceptedTerms">
+                  <input
+                    id="acceptedTerms"
+                    type="checkbox"
+                    name="acceptedTerms"
+                    checked={form.acceptedTerms}
+                    onChange={handleChange}
+                    required
+                  />
+                  <span>Jeg godtar vilkårene for bruk</span>
+                </label>
+              </div>
+
+              <button type="submit" className="auth__submit" disabled={loading}>
+                {loading ? "Sender…" : "Opprett konto"}
+              </button>
+            </form>
+          )}
 
           <p className="auth__footer-text">
             Har du allerede en konto?{" "}
