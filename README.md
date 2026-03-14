@@ -85,6 +85,8 @@ Set up environment variables first (see [docs/OPERATIONS.md](docs/OPERATIONS.md#
 
 - `JWT_SECRET`: Secret key used to sign authentication tokens. **Required**.
 - `JWT_EXPIRES_IN`: Lifetime for issued access tokens (for example `1h`, `2d`).
+- `REGISTRATION_ENABLED`: Enables public API registration when set to `true`. Defaults to disabled (`false`) for invite/admin-created account workflows.
+- `NEXT_PUBLIC_REGISTRATION_ENABLED`: Web toggle for showing the self-registration UI (should match `REGISTRATION_ENABLED`).
 
 ## Auth endpoints
 
@@ -96,6 +98,8 @@ Set up environment variables first (see [docs/OPERATIONS.md](docs/OPERATIONS.md#
 Auth behavior in this blueprint today:
 
 - `register` and `login` accept JSON credentials, create a server-side session row, set an HttpOnly `access` cookie, and return `{ user }`.
+- Public self-registration is disabled by default. Set `REGISTRATION_ENABLED=true` and `NEXT_PUBLIC_REGISTRATION_ENABLED=true` only when you explicitly want open signups.
+- For agency/client projects, keep registration disabled and provision users via admin tooling or invitation flows.
 - `/me` reads the access token from cookie or `Authorization: Bearer` header, validates JWT + active `Session`, and returns the authenticated profile.
 - `logout` revokes the active `Session` and clears the `access` cookie.
 - Refresh-token rotation is **not implemented**. The web `/api/auth/refresh` route returns `410 Gone` by design, so clients must re-authenticate when access tokens expire.

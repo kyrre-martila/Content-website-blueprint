@@ -52,20 +52,30 @@ const usersRepositoryStub: UsersRepository = {
 
 const authServiceStub: Partial<AuthService> = {
   login: async () => ({
-    user: { id: testUser.id, email: testUser.email, name: testUser.name ?? null },
+    user: {
+      id: testUser.id,
+      email: testUser.email,
+      name: testUser.name ?? null,
+    },
   }),
   register: async () => ({
-    user: { id: testUser.id, email: testUser.email, name: testUser.name ?? null },
+    user: {
+      id: testUser.id,
+      email: testUser.email,
+      name: testUser.name ?? null,
+    },
   }),
   decodeToken: () => ({ sub: testUser.id, email: testUser.email }),
 };
 
 describe("OpenAPI contract", () => {
   let app: INestApplication;
-  const originalEnv = process.env.NODE_ENV;
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalRegistrationEnabled = process.env.REGISTRATION_ENABLED;
 
   beforeAll(async () => {
     process.env.NODE_ENV = "test";
+    process.env.REGISTRATION_ENABLED = "true";
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider("UsersRepository")
@@ -98,15 +108,16 @@ describe("OpenAPI contract", () => {
       authServiceStub as AuthService;
 
     const usersController = app.get(UsersController);
-    (usersController as unknown as { usersService: UsersDomainService })
-      .usersService = new UsersDomainService(usersRepositoryStub);
     (
-      usersController as unknown as { auth: AuthService }
-    ).auth = authServiceStub as AuthService;
+      usersController as unknown as { usersService: UsersDomainService }
+    ).usersService = new UsersDomainService(usersRepositoryStub);
+    (usersController as unknown as { auth: AuthService }).auth =
+      authServiceStub as AuthService;
   });
 
   afterAll(async () => {
-    process.env.NODE_ENV = originalEnv;
+    process.env.NODE_ENV = originalNodeEnv;
+    process.env.REGISTRATION_ENABLED = originalRegistrationEnabled;
     if (app) {
       await app.close();
     }
@@ -124,7 +135,11 @@ describe("OpenAPI contract", () => {
   it("POST /api/v1/auth/register conforms to contract", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/v1/auth/register")
-      .send({ email: "user@example.com", password: "Password123!", name: "User" });
+      .send({
+        email: "user@example.com",
+        password: "Password123!",
+        name: "User",
+      });
 
     expect(response.status).toBe(201);
     expect(response).toSatisfyApiSpec();
