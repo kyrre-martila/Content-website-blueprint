@@ -24,13 +24,6 @@ const BLOCK_TYPES: Array<{ value: AdminPageBlockType; label: string }> = [
   { value: "news_list", label: "News list" },
 ];
 
-const BLOCK_TYPE_DESCRIPTIONS: Record<AdminPageBlockType, string> = {
-  hero: "Top-of-page section with heading, supporting text, and optional image.",
-  rich_text: "Long-form text content block.",
-  image: "Standalone image with alt text for accessibility.",
-  cta: "Call to action with message and button link.",
-  news_list: "Auto-generated list of recent news items.",
-};
 
 type BlockFieldWidget =
   | "text"
@@ -48,7 +41,15 @@ type BlockFieldSchema = {
   required?: boolean;
   description?: string;
   placeholder?: string;
+  editorHint?: "standard" | "advanced";
   relationOptions?: Array<{ value: string; label: string }>;
+};
+
+type BlockEditorSchema = {
+  sectionLabel: string;
+  sectionDescription: string;
+  summaryField?: string;
+  fields: BlockFieldSchema[];
 };
 
 type EditableBlock = {
@@ -57,86 +58,138 @@ type EditableBlock = {
   data: Record<string, unknown>;
 };
 
-const BLOCK_SCHEMAS: Record<AdminPageBlockType, BlockFieldSchema[]> = {
-  hero: [
-    {
-      key: "heading",
-      label: "Heading",
-      widget: "text",
-      required: true,
-      placeholder: "Welcome to our site",
-    },
-    {
-      key: "text",
-      label: "Supporting text",
-      widget: "textarea",
-      placeholder: "One short paragraph",
-    },
-    {
-      key: "imageUrl",
-      label: "Hero image URL",
-      widget: "image",
-      description: "Use media library to fill this automatically.",
-    },
-    { key: "imageWidth", label: "Image width", widget: "text" },
-    { key: "imageHeight", label: "Image height", widget: "text" },
-  ],
-  rich_text: [
-    {
-      key: "body",
-      label: "Body content",
-      widget: "rich_text",
-      required: true,
-      placeholder: "Add page copy here",
-    },
-  ],
-  image: [
-    {
-      key: "src",
-      label: "Image URL",
-      widget: "image",
-      required: true,
-      description: "Use media library to avoid copy/paste errors.",
-    },
-    {
-      key: "alt",
-      label: "Image description (alt text)",
-      widget: "text",
-      placeholder: "Describe the image for accessibility",
-    },
-    { key: "width", label: "Width", widget: "text" },
-    { key: "height", label: "Height", widget: "text" },
-  ],
-  cta: [
-    { key: "heading", label: "Heading", widget: "text", required: true },
-    { key: "text", label: "Supporting text", widget: "textarea" },
-    {
-      key: "buttonText",
-      label: "Button label",
-      widget: "text",
-      placeholder: "Read more",
-    },
-    {
-      key: "href",
-      label: "Button link",
-      widget: "text",
-      placeholder: "/contact",
-    },
-  ],
-  news_list: [
-    {
-      key: "heading",
-      label: "Section heading",
-      widget: "text",
-      placeholder: "Latest news",
-    },
-    {
-      key: "limit",
-      label: "Number of articles",
-      widget: "text",
-      description: "How many recent news items to show.",
-    },
-  ],
+const BLOCK_SCHEMAS: Record<AdminPageBlockType, BlockEditorSchema> = {
+  hero: {
+    sectionLabel: "Hero section",
+    sectionDescription:
+      "Primary intro at the top of the page with a headline, short text, and image.",
+    summaryField: "heading",
+    fields: [
+      {
+        key: "heading",
+        label: "Hero heading",
+        widget: "text",
+        required: true,
+        placeholder: "Welcome to our site",
+      },
+      {
+        key: "text",
+        label: "Hero text",
+        widget: "textarea",
+        placeholder: "One short paragraph",
+      },
+      {
+        key: "imageUrl",
+        label: "Hero image",
+        widget: "image",
+        description: "Choose an image from the media library when possible.",
+      },
+      {
+        key: "imageWidth",
+        label: "Hero image width (advanced)",
+        widget: "text",
+        editorHint: "advanced",
+      },
+      {
+        key: "imageHeight",
+        label: "Hero image height (advanced)",
+        widget: "text",
+        editorHint: "advanced",
+      },
+    ],
+  },
+  rich_text: {
+    sectionLabel: "Intro text section",
+    sectionDescription: "Main paragraph content for this area of the page.",
+    summaryField: "body",
+    fields: [
+      {
+        key: "body",
+        label: "Intro text",
+        widget: "rich_text",
+        required: true,
+        placeholder: "Add page copy here",
+      },
+    ],
+  },
+  image: {
+    sectionLabel: "Image section",
+    sectionDescription: "Standalone visual content with accessibility text.",
+    summaryField: "alt",
+    fields: [
+      {
+        key: "src",
+        label: "Section image",
+        widget: "image",
+        required: true,
+        description: "Use media library to avoid copy/paste errors.",
+      },
+      {
+        key: "alt",
+        label: "Image description (alt text)",
+        widget: "text",
+        placeholder: "Describe the image for accessibility",
+      },
+      {
+        key: "width",
+        label: "Image width (advanced)",
+        widget: "text",
+        editorHint: "advanced",
+      },
+      {
+        key: "height",
+        label: "Image height (advanced)",
+        widget: "text",
+        editorHint: "advanced",
+      },
+    ],
+  },
+  cta: {
+    sectionLabel: "Call-to-action section",
+    sectionDescription: "Message and link that prompts visitors to take action.",
+    summaryField: "buttonText",
+    fields: [
+      {
+        key: "heading",
+        label: "CTA heading",
+        widget: "text",
+        required: true,
+      },
+      { key: "text", label: "CTA text", widget: "textarea" },
+      {
+        key: "buttonText",
+        label: "CTA label",
+        widget: "text",
+        placeholder: "Read more",
+      },
+      {
+        key: "href",
+        label: "CTA link",
+        widget: "text",
+        placeholder: "/contact",
+      },
+    ],
+  },
+  news_list: {
+    sectionLabel: "Featured items section",
+    sectionDescription:
+      "Automatically displays recent news items using the selected heading and amount.",
+    summaryField: "heading",
+    fields: [
+      {
+        key: "heading",
+        label: "Featured items heading",
+        widget: "text",
+        placeholder: "Latest news",
+      },
+      {
+        key: "limit",
+        label: "Featured items count",
+        widget: "text",
+        description: "How many recent news items to show.",
+      },
+    ],
+  },
 };
 
 function normalizeSlug(value: string): string {
@@ -313,8 +366,35 @@ export function PageEditorClient({
     setError(null);
   }
 
-  function getSchemaForBlock(type: AdminPageBlockType): BlockFieldSchema[] {
-    return BLOCK_SCHEMAS[type] ?? [];
+  function getSchemaForBlock(type: AdminPageBlockType): BlockEditorSchema {
+    return BLOCK_SCHEMAS[type];
+  }
+
+  function getVisibleFields(type: AdminPageBlockType): BlockFieldSchema[] {
+    const schema = getSchemaForBlock(type);
+    return schema.fields.filter((field) => {
+      if (canEditRawJson) {
+        return true;
+      }
+
+      return field.editorHint !== "advanced";
+    });
+  }
+
+  function getSectionSummary(block: EditableBlock): string {
+    const schema = getSchemaForBlock(block.type);
+    const summaryKey = schema.summaryField;
+    if (!summaryKey) {
+      return schema.sectionLabel;
+    }
+
+    const rawValue = block.data[summaryKey];
+    if (typeof rawValue !== "string") {
+      return schema.sectionLabel;
+    }
+
+    const trimmed = rawValue.trim();
+    return trimmed ? trimmed : schema.sectionLabel;
   }
 
   function updateBlockDataFromJson(index: number, value: string) {
@@ -415,7 +495,7 @@ export function PageEditorClient({
         return;
       }
 
-      const schema = getSchemaForBlock(block.type);
+      const schema = getSchemaForBlock(block.type).fields;
       for (const field of schema) {
         const rawValue = block.data[field.key];
         const textValue =
@@ -644,7 +724,7 @@ export function PageEditorClient({
 
         <div className="page-editor__blocks">
           <div className="page-editor__blocks-header">
-            <h2>Page blocks ({blocks.length})</h2>
+            <h2>Page sections ({blocks.length})</h2>
             {canManageStructure && (
               <div className="page-editor__block-type-buttons">
                 <select
@@ -660,24 +740,24 @@ export function PageEditorClient({
                   ))}
                 </select>
                 <button type="button" onClick={() => addBlock(nextBlockType)}>
-                  Add block
+                  Add section
                 </button>
               </div>
             )}
           </div>
 
           <p className="page-editor__help">
-            Blocks render top to bottom. Select a block to edit visitor-facing
-            content.
+            Sections render top to bottom. Use names like Hero, Intro text, and
+            CTA to edit visitor-facing content.
           </p>
 
           <div className="page-editor__block-layout">
             <div
               className="page-editor__block-list"
               role="list"
-              aria-label="Block list"
+              aria-label="Page section list"
             >
-              {blocks.length === 0 && <p>No blocks yet. Add one to start.</p>}
+              {blocks.length === 0 && <p>No sections yet. Add one to start.</p>}
 
               {blocks.map((block, index) => {
                 const isActive = activeBlock?.id === block.id;
@@ -694,10 +774,10 @@ export function PageEditorClient({
                       onClick={() => setActiveBlockId(block.id)}
                     >
                       <strong>
-                        Position {index + 1} of {blocks.length}
+                        Section {index + 1} of {blocks.length}
                       </strong>
                       <small>
-                        {getBlockTypeLabel(block.type)} · {BLOCK_TYPE_DESCRIPTIONS[block.type]}
+                        {getSchemaForBlock(block.type).sectionLabel} · {getSectionSummary(block)}
                       </small>
                       <span>{isActive ? "Editing" : "Select"}</span>
                     </button>
@@ -723,7 +803,7 @@ export function PageEditorClient({
                               type="button"
                               onClick={() => removeBlock(index)}
                             >
-                              Remove block
+                              Remove section
                             </button>
                           </>
                         )}
@@ -737,17 +817,16 @@ export function PageEditorClient({
             {activeBlock && (
               <div className="page-editor__block-editor">
                 <h3>
-                  Editing block #{activeBlockIndex + 1}:{" "}
-                  {getBlockTypeLabel(activeBlock.type)}
+                  Editing section {activeBlockIndex + 1}: {getSchemaForBlock(activeBlock.type).sectionLabel}
                 </h3>
                 <p className="page-editor__field-help">
-                  {BLOCK_TYPE_DESCRIPTIONS[activeBlock.type]}
+                  {getSchemaForBlock(activeBlock.type).sectionDescription}
                 </p>
 
                 {activeBlockData && (
                   <fieldset className="page-editor__guided-fields">
                     <legend>Guided fields</legend>
-                    {getSchemaForBlock(activeBlock.type).map((field) => {
+                    {getVisibleFields(activeBlock.type).map((field) => {
                       const value = activeBlockData[field.key];
                       const normalizedValue = getFieldValueAsString(value);
                       return (
