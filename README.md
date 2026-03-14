@@ -87,12 +87,15 @@ Set up environment variables first (see [docs/OPERATIONS.md](docs/OPERATIONS.md#
 - `JWT_EXPIRES_IN`: Lifetime for issued access tokens (for example `1h`, `2d`).
 - `REGISTRATION_ENABLED`: Enables public API registration when set to `true`. Defaults to disabled (`false`) for invite/admin-created account workflows.
 - `NEXT_PUBLIC_REGISTRATION_ENABLED`: Web toggle for showing the self-registration UI (should match `REGISTRATION_ENABLED`).
+- `APP_URL`: Public web origin used to build password-reset links (for example `http://localhost:3000`).
 
 ## Auth endpoints
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/logout`
+- `POST /api/v1/auth/forgot-password`
+- `POST /api/v1/auth/reset-password`
 - `GET /api/v1/me`
 
 Auth behavior in this blueprint today:
@@ -102,6 +105,9 @@ Auth behavior in this blueprint today:
 - For agency/client projects, keep registration disabled and provision users via admin tooling or invitation flows.
 - `/me` reads the access token from cookie or `Authorization: Bearer` header, validates JWT + active `Session`, and returns the authenticated profile.
 - `logout` revokes the active `Session` and clears the `access` cookie.
+- `forgot-password` always returns success to avoid user enumeration; if the email exists, a `MagicLink` reset token is generated and sent by mail.
+- `reset-password` validates an unused, unexpired `MagicLink` token, updates the user password, and marks the token as used.
+- Web pages are available at `/auth/forgot-password` and `/auth/reset-password?token=...`.
 - Refresh-token rotation is **not implemented**. The web `/api/auth/refresh` route returns `410 Gone` by design, so clients must re-authenticate when access tokens expire.
 
 ## License

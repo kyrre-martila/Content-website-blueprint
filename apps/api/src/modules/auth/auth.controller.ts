@@ -47,6 +47,11 @@ class LogoutResponseDto {
   success!: boolean;
 }
 
+class SuccessResponseDto {
+  @ApiProperty()
+  success!: boolean;
+}
+
 class RegisterDto {
   @IsEmail()
   email!: string;
@@ -58,6 +63,20 @@ class RegisterDto {
   @IsOptional()
   @IsString()
   name?: string;
+}
+
+class ForgotPasswordDto {
+  @IsEmail()
+  email!: string;
+}
+
+class ResetPasswordDto {
+  @IsString()
+  token!: string;
+
+  @IsString()
+  @MinLength(8)
+  password!: string;
 }
 
 class LoginDto {
@@ -110,6 +129,24 @@ export class AuthController {
     const result = await this.auth.login(dto, this.extractSessionContext(req));
     this.writeAccessCookie(req, res, result.accessToken);
     return this.toAuthResponse(result.user);
+  }
+
+
+
+  @Post("forgot-password")
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: SuccessResponseDto })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<SuccessResponseDto> {
+    await this.auth.requestPasswordReset(dto);
+    return { success: true };
+  }
+
+  @Post("reset-password")
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: SuccessResponseDto })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<SuccessResponseDto> {
+    await this.auth.resetPassword(dto);
+    return { success: true };
   }
 
   @Post("logout")

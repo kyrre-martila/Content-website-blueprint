@@ -5,10 +5,12 @@ import { JwtModule } from "@nestjs/jwt";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { SessionRepository } from "./session.repository";
+import { MailerModule } from "../mailer/mailer.module";
 
 @Module({
   imports: [
     ConfigModule,
+    MailerModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

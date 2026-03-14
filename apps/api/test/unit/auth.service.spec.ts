@@ -20,7 +20,14 @@ type PrismaMock = {
   user: {
     findUnique: jest.Mock;
     create: jest.Mock;
+    update: jest.Mock;
   };
+  magicLink: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    update: jest.Mock;
+  };
+  $transaction: jest.Mock;
 };
 
 type JwtMock = {
@@ -34,6 +41,10 @@ type SessionsMock = {
   revoke: jest.Mock;
 };
 
+type MailerMock = {
+  sendPasswordResetLink: jest.Mock;
+};
+
 type ServiceOptions = {
   saltRounds?: number;
 };
@@ -43,7 +54,14 @@ const createService = (options: ServiceOptions = {}) => {
     user: {
       findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
+    magicLink: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn(async (queries) => Promise.all(queries)),
   };
   const jwt: JwtMock = {
     sign: jest.fn(),
@@ -54,10 +72,16 @@ const createService = (options: ServiceOptions = {}) => {
     findByToken: jest.fn(),
     revoke: jest.fn(),
   };
+  const mailer: MailerMock = {
+    sendPasswordResetLink: jest.fn(),
+  };
 
   const configGet = jest.fn((key: string) => {
     if (key === "BCRYPT_SALT_ROUNDS" && options.saltRounds !== undefined) {
       return String(options.saltRounds);
+    }
+    if (key === "APP_URL") {
+      return "http://localhost:3000";
     }
     return undefined;
   });
@@ -69,10 +93,11 @@ const createService = (options: ServiceOptions = {}) => {
     prisma as unknown as PrismaService,
     jwt as unknown as JwtService,
     sessions as unknown as SessionRepository,
+    mailer as any,
     config,
   );
 
-  return { service, prisma, jwt, sessions };
+  return { service, prisma, jwt, sessions, mailer };
 };
 
 describe("AuthService", () => {
@@ -119,6 +144,29 @@ describe("AuthService", () => {
     await expect(
       service.register({ email: "taken@example.com", password: "Password123" }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+
+  it("rejects login when user does not exist", async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(service.login({ email: "none@example.com", password: "Password123" })).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it("rejects login when password is incorrect", async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+      passwordHash: "stored-hash",
+      name: null,
+      displayName: null,
+      role: "admin",
+    });
+    bcrypt.compare.mockResolvedValue(false);
+
+    await expect(service.login({ email: "user@example.com", password: "bad" })).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it("authenticates a user with valid credentials", async () => {
@@ -275,6 +323,105 @@ describe("AuthService", () => {
     });
 
     expect(service.decodeToken("bad-token")).toBeNull();
+  });
+
+  it("handles forgot password without user enumeration", async () => {
+    const { service, prisma, mailer } = createService();
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(service.requestPasswordReset({ email: "missing@example.com" })).resolves.toBeUndefined();
+    expect(prisma.magicLink.create).not.toHaveBeenCalled();
+    expect(mailer.sendPasswordResetLink).not.toHaveBeenCalled();
+  });
+
+  it("creates reset token and sends email for existing user", async () => {
+    const { service, prisma, mailer } = createService();
+    prisma.user.findUnique.mockResolvedValue({ id: "u1", email: "user@example.com" });
+
+    await service.requestPasswordReset({ email: "user@example.com" });
+
+    expect(prisma.magicLink.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ email: "user@example.com", token: expect.any(String) }),
+      }),
+    );
+    expect(mailer.sendPasswordResetLink).toHaveBeenCalledWith(
+      "user@example.com",
+      expect.stringContaining("/auth/reset-password?token="),
+    );
+  });
+
+  it("resets password and marks token as used", async () => {
+    const { service, prisma } = createService();
+    prisma.magicLink.findUnique.mockResolvedValue({
+      id: "ml1",
+      email: "user@example.com",
+      usedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+      passwordHash: "old",
+      name: null,
+      displayName: null,
+      role: "editor",
+    });
+    bcrypt.hash.mockResolvedValue("new-hash");
+    prisma.user.update.mockResolvedValue({});
+    prisma.magicLink.update.mockResolvedValue({});
+
+    await service.resetPassword({ token: "token", password: "newpassword" });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { passwordHash: "new-hash" },
+    });
+    expect(prisma.magicLink.update).toHaveBeenCalledWith({
+      where: { id: "ml1" },
+      data: { usedAt: expect.any(Date) },
+    });
+  });
+
+  it("rejects invalid reset token", async () => {
+    const { service, prisma } = createService();
+    prisma.magicLink.findUnique.mockResolvedValue(null);
+
+    await expect(service.resetPassword({ token: "bad", password: "newpassword" })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+
+  it("rejects reset token when mapped user does not exist", async () => {
+    const { service, prisma } = createService();
+    prisma.magicLink.findUnique.mockResolvedValue({
+      id: "ml1",
+      email: "missing@example.com",
+      usedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(service.resetPassword({ token: "token", password: "newpassword" })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("throws when issued JWT payload has no exp", async () => {
+    const { service, prisma, jwt } = createService();
+    prisma.user.findUnique.mockResolvedValue(null);
+    bcrypt.hash.mockResolvedValue("hashed-pass");
+    prisma.user.create.mockResolvedValue({
+      id: "user-1",
+      email: "test@example.com",
+      passwordHash: "hashed-pass",
+      name: null,
+      displayName: null,
+      role: "editor",
+    });
+    jwt.sign.mockReturnValue("signed-token");
+    jwt.verify.mockReturnValue({ sub: "user-1", email: "test@example.com", sid: "sid-1" });
+
+    await expect(
+      service.register({ email: "test@example.com", password: "Password123" }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it("hashes passwords using configured salt rounds", async () => {
