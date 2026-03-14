@@ -41,3 +41,31 @@ If needed, run DB commands separately:
 3. Review traces in OTLP backend for failing spans.
 4. Test database connectivity: `psql $DATABASE_URL -c "select 1"`.
 5. If degraded, follow [docs/RUNBOOKS/incident-response.md](RUNBOOKS/incident-response.md).
+## Deployment Smoke Test
+
+Run the post-deploy smoke test from the repo root:
+
+```bash
+pnpm smoke:test
+```
+
+The script validates these endpoints:
+
+- API health endpoint (`GET /health`)
+- login endpoint (`POST /api/v1/auth/login`)
+- admin authentication (`GET /api/v1/content/pages` with admin session cookie)
+- public content endpoint (`GET /api/v1/public/content/pages`)
+- sitemap endpoint (`GET /sitemap.xml`)
+
+Required environment variables:
+
+- `SMOKE_ADMIN_PASSWORD`: password for the admin account used in the check.
+
+Optional environment variables:
+
+- `SMOKE_ADMIN_EMAIL` (default: `admin@example.com`)
+- `SMOKE_API_ORIGIN` (default: `http://localhost:4000`)
+- `SMOKE_WEB_ORIGIN` (default: `http://localhost:3000`)
+- `SMOKE_API_BASE_PATH` (default: `/api/v1`)
+- `SMOKE_TIMEOUT_MS` (default: `10000`)
+
