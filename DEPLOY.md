@@ -80,3 +80,13 @@ The provided production compose setup uses Traefik as this proxy layer.
 - Session revocation is DB-backed (`Session` table), so API instances must share the same database to keep logout/forced-revoke behavior consistent.
 
 **Implemented vs planned:** refresh-token rotation and third-party OAuth/SSO are planned/customization items, not part of the default runtime behavior.
+
+
+## Media storage deployment guidance
+
+- `MEDIA_STORAGE_PROVIDER=local` is the only implemented provider in this blueprint.
+- This local mode is production-usable for single-server deployments (homelab, single VM, simple VPS) when the `uploads/` directory is on durable storage and included in backups.
+- `s3`, `r2`, and `supabase` providers are extension points only in this blueprint and are intentionally blocked at startup.
+- Do not set non-local providers in production unless you implement, test, and operate them end-to-end (upload, delete, URL generation, credentials, bucket/container policies, and failure handling).
+
+Upload scanning uses a pluggable hook (`MediaUploadScanner`). The default is no-op; production environments with malware or compliance requirements should provide a concrete scanner implementation before go-live.

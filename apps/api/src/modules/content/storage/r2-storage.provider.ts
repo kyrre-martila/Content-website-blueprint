@@ -11,16 +11,16 @@ export class R2StorageProvider implements MediaStorageProvider {
   async upload(file: MediaUploadFile, metadata: MediaUploadMetadata): Promise<UploadedMedia> {
     void file;
     void metadata;
-    throw new Error("R2StorageProvider is not implemented");
+    throw new Error("R2StorageProvider is an extension point and is not implemented in this blueprint. Keep MEDIA_STORAGE_PROVIDER=local until you provide a production-ready R2 implementation.");
   }
 
   async delete(id: string): Promise<void> {
     void id;
-    throw new Error("R2StorageProvider is not implemented");
+    throw new Error("R2StorageProvider is an extension point and is not implemented in this blueprint. Keep MEDIA_STORAGE_PROVIDER=local until you provide a production-ready R2 implementation.");
   }
 
   getUrl(id: string): string {
     void id;
-    throw new Error("R2StorageProvider is not implemented");
+    throw new Error("R2StorageProvider is an extension point and is not implemented in this blueprint. Keep MEDIA_STORAGE_PROVIDER=local until you provide a production-ready R2 implementation.");
   }
 }

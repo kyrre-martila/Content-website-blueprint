@@ -1,8 +1,7 @@
 import { PrismaService } from "../prisma/prisma.service";
+import { assertMediaStorageProviderSupported } from "../modules/content/media-storage-provider.config";
 
 type Env = Record<string, string | undefined>;
-
-const SUPPORTED_MEDIA_STORAGE_PROVIDERS = ["local"] as const;
 
 const DEVELOPMENT_CORS_DEFAULT_ORIGINS = [
   "http://localhost:3000",
@@ -31,17 +30,7 @@ export function validateRequiredEnvVariables(env: Env = process.env) {
     );
   }
 
-  const requestedProvider = env.MEDIA_STORAGE_PROVIDER?.trim().toLowerCase();
-  if (
-    requestedProvider &&
-    !SUPPORTED_MEDIA_STORAGE_PROVIDERS.includes(
-      requestedProvider as (typeof SUPPORTED_MEDIA_STORAGE_PROVIDERS)[number],
-    )
-  ) {
-    throw new Error(
-      `Unsupported MEDIA_STORAGE_PROVIDER \"${requestedProvider}\". This blueprint currently supports only \"local\". Providers \"s3\", \"r2\", and \"supabase\" are extension points and must be implemented before use.`,
-    );
-  }
+  assertMediaStorageProviderSupported(env);
 }
 
 export function resolveCorsOrigins(env: Env = process.env): string[] {

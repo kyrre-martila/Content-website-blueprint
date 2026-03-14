@@ -24,3 +24,13 @@
 - CI workflow `Docker Publish` builds images and pushes to the configured registry (`REGISTRY_HOST/PROJECT/*`).
 - Local manual push: `docker compose -f infra/docker-compose.prod.yml build` → `docker push <tag>`.
 - Tag images with commit SHA for traceability.
+
+## Media storage provider status
+
+- Implemented provider: `local` (`MEDIA_STORAGE_PROVIDER=local`, default).
+- Extension points only: `s3`, `r2`, `supabase`.
+- Startup guardrail: API startup fails fast if `MEDIA_STORAGE_PROVIDER` is set to an unsupported provider.
+
+`local` storage is production-usable for single-server deployments when `uploads/` is durable and backed up. Before using a cloud provider in production, implement and validate the provider end-to-end (write/delete/read URL behavior, credentials handling, bucket/container policy, and operational monitoring).
+
+Upload scanning is exposed as a pluggable `MediaUploadScanner` hook. The default scanner is no-op; replace it when your threat model/compliance posture requires scanning.
