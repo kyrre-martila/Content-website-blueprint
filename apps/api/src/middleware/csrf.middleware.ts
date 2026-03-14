@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { randomBytes, createHmac, timingSafeEqual } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
+import { isHardenedEnvironment } from "../config/runtime-env";
 
 const MOBILE_PATH_REGEX = /^\/api\/v1\/mobile\//;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -16,21 +17,11 @@ function shouldBypassCsrf(req: Request): boolean {
   );
 }
 
-function shouldSetSecureCookie(req: Request, isProd: boolean): boolean {
+function shouldSetSecureCookie(_req: Request, isProd: boolean): boolean {
   if (!isProd) {
     return false;
   }
-
-  if (req.secure) {
-    return true;
-  }
-
-  const forwardedProto = req.headers["x-forwarded-proto"];
-  if (typeof forwardedProto === "string") {
-    return forwardedProto.split(",")[0].trim().toLowerCase() === "https";
-  }
-
-  return false;
+  return true;
 }
 
 function createToken(secret: string, hmacSecret: string): string {
@@ -52,7 +43,11 @@ function readHeaderToken(req: Request): string | undefined {
 }
 
 export function createCsrfMiddleware(config: ConfigService): RequestHandler {
-  const isProd = config.get<string>("NODE_ENV") === "production";
+  const isProd = isHardenedEnvironment({
+    NODE_ENV: config.get<string>("NODE_ENV"),
+    APP_ENV: config.get<string>("APP_ENV"),
+    DEPLOY_ENV: config.get<string>("DEPLOY_ENV"),
+  });
   const cookieDomain = config.get<string>("COOKIE_DOMAIN") ?? undefined;
   const csrfCookieName = config.get<string>("CSRF_COOKIE_NAME") ?? "XSRF-TOKEN";
   const csrfSecretCookieName = `${csrfCookieName}-SECRET`;

@@ -121,3 +121,22 @@ For production deployments:
 - `pnpm start`
 - `pnpm start:api`
 - `pnpm start:web`
+
+
+## Staging checklist
+
+- [ ] Set `DEPLOY_ENV=staging`.
+- [ ] Set explicit `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_API_URL` for staging domains.
+- [ ] Set `API_CORS_ORIGINS` to staging web/admin origins.
+- [ ] Run `pnpm db:migrate` against staging DB before deploy.
+- [ ] Verify `GET /health` and `GET /api/health` after rollout.
+- [ ] Validate login + CSRF-protected admin mutation in staging UI.
+
+
+## First client launch checklist
+
+- [ ] Production secrets rotated from defaults.
+- [ ] `API_CORS_ORIGINS` and cookie domain reviewed with final DNS values.
+- [ ] Backups and restore drill completed.
+- [ ] Monitoring/alerting connected to production services.
+- [ ] Smoke test completed for homepage, login, admin save, and logout.

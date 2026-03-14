@@ -16,19 +16,31 @@ Use `.env.prod.example` as the baseline.
 Required minimum:
 
 - `NODE_ENV=production`
+- `DEPLOY_ENV=production` (or `staging` for pre-prod)
 - `DATABASE_URL`
 - `JWT_SECRET`
 - `COOKIE_SECRET`
 - `NEXT_PUBLIC_SITE_URL`
+- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_API_BASE_PATH` (default `/api/v1`)
 - `API_CORS_ORIGINS`
 
 Use cryptographically random values for `JWT_SECRET` and `COOKIE_SECRET` (32+ chars, mixed character types).
+
+### Fail-fast startup behavior
+
+- API fails startup when required API secrets/DB env vars are missing.
+- API fails startup when `API_CORS_ORIGINS` is missing in hardened environments (`production` and `staging`).
+- API fails startup when Prisma migrations are missing or unapplied.
+- Web fails build/start in hardened environments when `NEXT_PUBLIC_SITE_URL` or `NEXT_PUBLIC_API_URL` is missing/invalid.
 
 ## 3) Apply database migrations
 
 ```bash
 pnpm db:migrate
 ```
+
+Run migrations before promoting new API/web versions.
 
 ## 4) Run production services
 
@@ -53,7 +65,29 @@ If you deploy with containers, you can use:
 docker compose -f infra/docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
-## 5) Reverse proxy expectations
+## 5) Health/readiness and startup ordering
+
+### Health endpoints
+
+- API liveness/health: `GET /health`
+- Web health: `GET /api/health`
+
+### Readiness assumptions
+
+- Database is reachable from API at process start.
+- `_prisma_migrations` exists and contains at least one applied migration.
+- API CORS allowlist and cookie secrets are configured for the deployed domain(s).
+- Web public runtime URLs point at deployed API/web origins.
+
+### Startup ordering
+
+1. Start database.
+2. Apply migrations (`pnpm db:migrate`).
+3. Start API and wait for `/health` success.
+4. Start web and verify `/api/health` plus one authenticated admin request.
+5. Shift traffic.
+
+## 6) Reverse proxy expectations
 
 Deploy behind a reverse proxy/load balancer that:
 
@@ -64,14 +98,26 @@ Deploy behind a reverse proxy/load balancer that:
 
 The provided production compose setup uses Traefik as this proxy layer.
 
-## 6) Database requirements
+## 7) Cookie + CSRF environment parity
+
+`production` and `staging` are intentionally treated as hardened environments.
+
+| Environment | CSRF fallback token in web middleware | API auth cookie `Secure` | API CSRF cookies `Secure` |
+| --- | --- | --- | --- |
+| development | Allowed only for local/test convenience | Based on request/proxy (`https` only) | Based on request/proxy (`https` only) |
+| test/CI | Allowed (`test-csrf-token`) for test automation | Based on request/proxy | Based on request/proxy |
+| staging | Disabled | Always `true` | Always `true` |
+| production | Disabled | Always `true` | Always `true` |
+
+This prevents test/dev token shortcuts from silently leaking into staging.
+
+## 8) Database requirements
 
 - PostgreSQL 16-compatible
 - network access from API runtime
 - `DATABASE_URL` points to the target database/schema
 - migrations applied during deploy (`pnpm db:migrate`)
 - automated backups and restore process in place
-
 
 ## Authentication deployment notes
 
@@ -81,7 +127,6 @@ The provided production compose setup uses Traefik as this proxy layer.
 
 **Implemented vs planned:** refresh-token rotation and third-party OAuth/SSO are planned/customization items, not part of the default runtime behavior.
 
-
 ## Media storage deployment guidance
 
 - `MEDIA_STORAGE_PROVIDER=local` is the only implemented provider in this blueprint.
@@ -90,3 +135,21 @@ The provided production compose setup uses Traefik as this proxy layer.
 - Do not set non-local providers in production unless you implement, test, and operate them end-to-end (upload, delete, URL generation, credentials, bucket/container policies, and failure handling).
 
 Upload scanning uses a pluggable hook (`MediaUploadScanner`). The default is no-op; production environments with malware or compliance requirements should provide a concrete scanner implementation before go-live.
+
+## Production readiness checklist
+
+- [ ] Secrets set with strong random values (`JWT_SECRET`, `COOKIE_SECRET`).
+- [ ] `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_API_BASE_PATH` explicitly set.
+- [ ] `API_CORS_ORIGINS` explicitly set to deployed origins.
+- [ ] Database migrations applied and verified.
+- [ ] `/health` and `/api/health` checks green.
+- [ ] Auth flow tested end-to-end (login, `/me`, logout).
+- [ ] Backups and log retention configured.
+
+## First client launch checklist
+
+- [ ] DNS + TLS validated for public/admin/API domains.
+- [ ] Cookie domain and secure-cookie behavior verified in browser devtools.
+- [ ] CSRF token/header flow verified from UI for mutating admin operations.
+- [ ] Rollback plan rehearsed with latest database snapshot.
+- [ ] Stakeholder sign-off after smoke tests.

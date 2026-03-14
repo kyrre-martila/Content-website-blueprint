@@ -34,3 +34,14 @@
 `local` storage is production-usable for single-server deployments when `uploads/` is durable and backed up. Before using a cloud provider in production, implement and validate the provider end-to-end (write/delete/read URL behavior, credentials handling, bucket/container policy, and operational monitoring).
 
 Upload scanning is exposed as a pluggable `MediaUploadScanner` hook. The default scanner is no-op; replace it when your threat model/compliance posture requires scanning.
+
+
+## Readiness and ordering
+
+1. Ensure database is reachable.
+2. Apply migrations before release (`pnpm db:migrate`).
+3. Start API and verify `GET /health`.
+4. Start web and verify `GET /api/health`.
+5. Run an auth smoke test (login, `/api/v1/me`, logout).
+
+Staging should set `DEPLOY_ENV=staging` so startup/runtime guardrails match production expectations.

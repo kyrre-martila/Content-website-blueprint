@@ -151,4 +151,35 @@ describe("createCsrfMiddleware", () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();
   });
+
+
+  it("marks csrf cookies as secure in staging environments", () => {
+    const middleware = createCsrfMiddleware(
+      buildConfig({ NODE_ENV: "production", DEPLOY_ENV: "staging" }),
+    );
+    const req: MockRequest = {
+      method: "GET",
+      path: "/api/v1/admin/posts",
+      headers: {},
+      signedCookies: {},
+      secure: false,
+    };
+    const res = buildResponse();
+
+    middleware(req as Request, res as unknown as Response, jest.fn());
+
+    expect(res.cookie).toHaveBeenNthCalledWith(
+      1,
+      "XSRF-TOKEN-SECRET",
+      expect.any(String),
+      expect.objectContaining({ secure: true }),
+    );
+    expect(res.cookie).toHaveBeenNthCalledWith(
+      2,
+      "XSRF-TOKEN",
+      expect.any(String),
+      expect.objectContaining({ secure: true }),
+    );
+  });
+
 });
