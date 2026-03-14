@@ -15,6 +15,7 @@ type Props = {
     items: AdminContentItem[];
   }>;
   canUseMediaLibrary: boolean;
+  initialSelectedTypeSlug?: string;
 };
 
 type ContentItemDraft = {
@@ -604,6 +605,7 @@ export function ContentAdminClient({
   initialContentTypes,
   initialGroupedItems,
   canUseMediaLibrary,
+  initialSelectedTypeSlug,
 }: Props) {
   const [contentTypes, setContentTypes] = React.useState(initialContentTypes);
   const [contentTypeDrafts, setContentTypeDrafts] = React.useState<
@@ -619,9 +621,12 @@ export function ContentAdminClient({
         initialGroupedItems.map((entry) => [entry.contentTypeId, entry.items]),
       ),
   );
-  const [selectedTypeId, setSelectedTypeId] = React.useState(
-    initialContentTypes[0]?.id ?? "",
-  );
+  const [selectedTypeId, setSelectedTypeId] = React.useState(() => {
+    const preferredType = initialSelectedTypeSlug
+      ? initialContentTypes.find((type) => type.slug === initialSelectedTypeSlug)
+      : null;
+    return preferredType?.id ?? initialContentTypes[0]?.id ?? "";
+  });
   const [createDrafts, setCreateDrafts] = React.useState<
     Record<string, ContentItemDraft>
   >(() =>

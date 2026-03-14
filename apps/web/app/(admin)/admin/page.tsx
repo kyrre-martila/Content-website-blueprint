@@ -13,8 +13,8 @@ export default async function AdminOverviewPage() {
           : "Admin access"}
       </h1>
       <p className="hero__subtitle">
-        This area is reserved for authenticated editors and administrators.
-        Public website experiences are served from dedicated public routes.
+        Editor mode is focused on practical content updates, while builder/system
+        mode is reserved for super admins managing schema and platform structure.
       </p>
     </section>
   );
