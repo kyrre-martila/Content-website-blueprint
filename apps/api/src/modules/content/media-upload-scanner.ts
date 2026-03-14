@@ -8,6 +8,14 @@ export type MediaUploadScanInput = {
   mimeType: string;
 };
 
+/**
+ * Extension hook for upload scanning (antivirus, DLP, policy checks).
+ *
+ * Implementations should throw to reject unsafe uploads. The default
+ * blueprint implementation is intentionally a no-op so local deployments
+ * stay lightweight while keeping a clear integration point for production
+ * environments that require scanning.
+ */
 export interface MediaUploadScanner {
   scan(input: MediaUploadScanInput): Promise<void>;
 }

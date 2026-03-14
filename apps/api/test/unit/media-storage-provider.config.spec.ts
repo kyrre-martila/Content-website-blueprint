@@ -1,4 +1,7 @@
-import { resolveMediaStorageProvider } from "../../src/modules/content/media-storage-provider.config";
+import {
+  assertMediaStorageProviderSupported,
+  resolveMediaStorageProvider,
+} from "../../src/modules/content/media-storage-provider.config";
 
 describe("resolveMediaStorageProvider", () => {
   it("defaults to local when no provider is configured", () => {
@@ -15,5 +18,23 @@ describe("resolveMediaStorageProvider", () => {
     expect(() =>
       resolveMediaStorageProvider({ MEDIA_STORAGE_PROVIDER: "supabase" }),
     ).toThrow('Unsupported MEDIA_STORAGE_PROVIDER "supabase"');
+  });
+});
+
+describe("assertMediaStorageProviderSupported", () => {
+  it("does not throw when unset", () => {
+    expect(() => assertMediaStorageProviderSupported({})).not.toThrow();
+  });
+
+  it("does not throw for local", () => {
+    expect(() =>
+      assertMediaStorageProviderSupported({ MEDIA_STORAGE_PROVIDER: "local" }),
+    ).not.toThrow();
+  });
+
+  it("throws for unsupported cloud providers", () => {
+    expect(() =>
+      assertMediaStorageProviderSupported({ MEDIA_STORAGE_PROVIDER: "r2" }),
+    ).toThrow('Unsupported MEDIA_STORAGE_PROVIDER "r2"');
   });
 });

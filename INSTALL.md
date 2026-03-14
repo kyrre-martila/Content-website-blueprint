@@ -113,3 +113,15 @@ By default:
 - `POST /api/v1/auth/logout` revokes the active server-side session and clears the `access` cookie.
 - Refresh tokens are not implemented; when access tokens expire, users must sign in again.
 
+
+
+## Media storage (implemented vs extension points)
+
+- `MEDIA_STORAGE_PROVIDER` defaults to `local`.
+- Implemented and production-usable today: `local` (filesystem-backed uploads under `/uploads`).
+- Extension points only (not production-ready in this blueprint): `s3`, `r2`, `supabase`.
+- Startup guardrail: setting `MEDIA_STORAGE_PROVIDER` to an unsupported value fails API startup with a clear error.
+
+For homelab/single-VM/simple-VPS deployments, local storage is the recommended mode. Persist and back up the `uploads/` directory as part of normal operations.
+
+Upload scanning is pluggable via the `MediaUploadScanner` interface. The default scanner is a no-op; replace it with a custom implementation if your environment requires antivirus or policy scanning.
