@@ -642,6 +642,34 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1073,6 +1101,34 @@
             "name": "id",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -2761,6 +2817,9 @@
           },
           "templateKey": {
             "type": "string"
+          },
+          "revisionNote": {
+            "type": "string"
           }
         }
       },
@@ -3014,6 +3073,9 @@
           },
           "unpublishAt": {
             "type": "object"
+          },
+          "revisionNote": {
+            "type": "string"
           }
         }
       },
