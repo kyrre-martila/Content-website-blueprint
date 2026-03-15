@@ -33,7 +33,7 @@ This repository is a blueprint, not a finished product. The architecture and def
 | Pages/content editing | **implemented**           | Admin APIs and web UI support editing pages, blocks, content types, and content items.                                                             |
 | Media storage         | **partially implemented** | Local filesystem provider is production-usable for single-server setups; cloud object storage providers are extension points.                      |
 | Revisions             | **implemented**           | Page/content revision history and restore flows are included in the content domain, with cursor pagination and a keep-latest-100 retention policy. |
-| Scheduled publishing  | **planned**               | No background scheduler is enabled by default; `publishAt`/`unpublishAt` are enforced at request time by public page/content/sitemap endpoints. |
+| Scheduled publishing  | **planned**               | No background scheduler is enabled by default; `publishAt`/`unpublishAt` are enforced at request time by public page/content/sitemap endpoints.    |
 | Approval workflow     | **planned**               | Multi-step editorial approval flows are intentionally left for project customization.                                                              |
 | Audit log             | **partially implemented** | Audit logging infrastructure exists, but full editorial-event coverage should be extended per project requirements.                                |
 | Redirects             | **implemented**           | Legacy slug redirects are supported in public content resolution.                                                                                  |
@@ -117,6 +117,7 @@ Set up environment variables first (see [docs/OPERATIONS.md](docs/OPERATIONS.md#
 - `JWT_EXPIRES_IN`: Lifetime for issued access tokens (for example `1h`, `2d`).
 - `REGISTRATION_ENABLED`: Enables public API registration when set to `true`. Defaults to disabled (`false`) for invite/admin-created account workflows.
 - `NEXT_PUBLIC_REGISTRATION_ENABLED`: Web toggle for showing the self-registration UI (should match `REGISTRATION_ENABLED`).
+- `ALLOW_PUBLIC_REGISTRATION_IN_HARDENED_ENV`: Extra safety flag for `production`/`staging`; must also be `true` before `/auth/register` accepts self-signups in hardened environments.
 - `APP_URL`: Public web origin used to build password-reset links (for example `http://localhost:3000`).
 
 ## Auth endpoints
@@ -132,6 +133,7 @@ Auth behavior in this blueprint today:
 
 - `register` and `login` accept JSON credentials, create a server-side session row, set an HttpOnly `access` cookie, and return `{ user }`.
 - Public self-registration is disabled by default. Set `REGISTRATION_ENABLED=true` and `NEXT_PUBLIC_REGISTRATION_ENABLED=true` only when you explicitly want open signups.
+- In `production`/`staging`, `/auth/register` is additionally blocked unless `ALLOW_PUBLIC_REGISTRATION_IN_HARDENED_ENV=true` is explicitly set (defense-in-depth for production handoff).
 - For agency/client projects, keep registration disabled and provision users via admin tooling or invitation flows.
 - `/me` reads the access token from cookie or `Authorization: Bearer` header, validates JWT + active `Session`, and returns the authenticated profile.
 - `logout` revokes the active `Session` and clears the `access` cookie.

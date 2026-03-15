@@ -12,8 +12,12 @@ jest.mock("bcrypt", () => ({
 }));
 
 const bcrypt = jest.requireMock("bcrypt") as {
-  hash: jest.MockedFunction<(password: string, saltRounds: number) => Promise<string>>;
-  compare: jest.MockedFunction<(plain: string, hash: string) => Promise<boolean>>;
+  hash: jest.MockedFunction<
+    (password: string, saltRounds: number) => Promise<string>
+  >;
+  compare: jest.MockedFunction<
+    (plain: string, hash: string) => Promise<boolean>
+  >;
 };
 
 type PrismaMock = {
@@ -26,6 +30,9 @@ type PrismaMock = {
     create: jest.Mock;
     findUnique: jest.Mock;
     update: jest.Mock;
+  };
+  session: {
+    updateMany: jest.Mock;
   };
   $transaction: jest.Mock;
 };
@@ -60,6 +67,9 @@ const createService = (options: ServiceOptions = {}) => {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+    },
+    session: {
+      updateMany: jest.fn(),
     },
     $transaction: jest.fn(async (queries) => Promise.all(queries)),
   };
@@ -120,7 +130,12 @@ describe("AuthService", () => {
       updatedAt: new Date(),
     });
     jwt.sign.mockReturnValue("signed-token");
-    jwt.verify.mockReturnValue({ sub: "user-1", email: "test@example.com", sid: "sid-1", exp: 1_900_000_000 });
+    jwt.verify.mockReturnValue({
+      sub: "user-1",
+      email: "test@example.com",
+      sid: "sid-1",
+      exp: 1_900_000_000,
+    });
 
     const result = await service.register({
       email: "test@example.com",
@@ -132,7 +147,12 @@ describe("AuthService", () => {
       expect.objectContaining({ userId: "user-1", token: expect.any(String) }),
     );
     expect(result).toEqual({
-      user: { id: "user-1", email: "test@example.com", name: "Test User", role: "editor" },
+      user: {
+        id: "user-1",
+        email: "test@example.com",
+        name: "Test User",
+        role: "editor",
+      },
       accessToken: "signed-token",
     });
   });
@@ -146,12 +166,13 @@ describe("AuthService", () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-
   it("rejects login when user does not exist", async () => {
     const { service, prisma } = createService();
     prisma.user.findUnique.mockResolvedValue(null);
 
-    await expect(service.login({ email: "none@example.com", password: "Password123" })).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(
+      service.login({ email: "none@example.com", password: "Password123" }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it("rejects login when password is incorrect", async () => {
@@ -166,7 +187,9 @@ describe("AuthService", () => {
     });
     bcrypt.compare.mockResolvedValue(false);
 
-    await expect(service.login({ email: "user@example.com", password: "bad" })).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(
+      service.login({ email: "user@example.com", password: "bad" }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it("authenticates a user with valid credentials", async () => {
@@ -183,20 +206,37 @@ describe("AuthService", () => {
     });
     bcrypt.compare.mockResolvedValue(true);
     jwt.sign.mockReturnValue("access-token");
-    jwt.verify.mockReturnValue({ sub: "user-1", email: "user@example.com", sid: "sid-1", exp: 1_900_000_000 });
+    jwt.verify.mockReturnValue({
+      sub: "user-1",
+      email: "user@example.com",
+      sid: "sid-1",
+      exp: 1_900_000_000,
+    });
 
-    const result = await service.login({ email: "user@example.com", password: "Secret123" });
+    const result = await service.login({
+      email: "user@example.com",
+      password: "Secret123",
+    });
 
     expect(result).toEqual({
-      user: { id: "user-1", email: "user@example.com", name: null, role: "admin" },
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        name: null,
+        role: "admin",
+      },
       accessToken: "access-token",
     });
   });
 
-
   it("validates user when token and session are active", async () => {
     const { service, prisma, jwt, sessions } = createService();
-    jwt.verify.mockReturnValue({ sub: "user-1", email: "user@example.com", sid: "sid-1", exp: 1_900_000_000 });
+    jwt.verify.mockReturnValue({
+      sub: "user-1",
+      email: "user@example.com",
+      sid: "sid-1",
+      exp: 1_900_000_000,
+    });
     sessions.findByToken.mockResolvedValue({
       userId: "user-1",
       token: "sid-1",
@@ -224,7 +264,12 @@ describe("AuthService", () => {
 
   it("rejects revoked sessions", async () => {
     const { service, prisma, jwt, sessions } = createService();
-    jwt.verify.mockReturnValue({ sub: "user-1", email: "user@example.com", sid: "sid-1", exp: 1_900_000_000 });
+    jwt.verify.mockReturnValue({
+      sub: "user-1",
+      email: "user@example.com",
+      sid: "sid-1",
+      exp: 1_900_000_000,
+    });
     sessions.findByToken.mockResolvedValue({
       userId: "user-1",
       token: "sid-1",
@@ -242,12 +287,19 @@ describe("AuthService", () => {
       updatedAt: new Date(),
     });
 
-    await expect(service.validateUser("token")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.validateUser("token")).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it("revokes expired sessions", async () => {
     const { service, jwt, sessions } = createService();
-    jwt.verify.mockReturnValue({ sub: "user-1", email: "user@example.com", sid: "sid-1", exp: 1_900_000_000 });
+    jwt.verify.mockReturnValue({
+      sub: "user-1",
+      email: "user@example.com",
+      sid: "sid-1",
+      exp: 1_900_000_000,
+    });
     sessions.findByToken.mockResolvedValue({
       userId: "user-1",
       token: "sid-1",
@@ -255,19 +307,25 @@ describe("AuthService", () => {
       revokedAt: null,
     });
 
-    await expect(service.validateUser("token")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.validateUser("token")).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
     expect(sessions.revoke).toHaveBeenCalled();
   });
 
   it("revokes session from token", async () => {
     const { service, jwt, sessions } = createService();
-    jwt.verify.mockReturnValue({ sub: "user-1", email: "user@example.com", sid: "sid-1", exp: 1_900_000_000 });
+    jwt.verify.mockReturnValue({
+      sub: "user-1",
+      email: "user@example.com",
+      sid: "sid-1",
+      exp: 1_900_000_000,
+    });
 
     await service.revokeSessionFromToken("token");
 
     expect(sessions.revoke).toHaveBeenCalledWith("sid-1", expect.any(Date));
   });
-
 
   it("throws when token payload cannot be decoded", async () => {
     const { service, jwt } = createService();
@@ -275,27 +333,43 @@ describe("AuthService", () => {
       throw new Error("invalid");
     });
 
-    await expect(service.validateUser("bad-token")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.validateUser("bad-token")).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it("throws when session record does not exist", async () => {
     const { service, jwt, sessions } = createService();
-    jwt.verify.mockReturnValue({ sub: "user-1", email: "user@example.com", sid: "sid-1", exp: 1_900_000_000 });
+    jwt.verify.mockReturnValue({
+      sub: "user-1",
+      email: "user@example.com",
+      sid: "sid-1",
+      exp: 1_900_000_000,
+    });
     sessions.findByToken.mockResolvedValue(null);
 
-    await expect(service.validateUser("token")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.validateUser("token")).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it("throws when token has no sid", async () => {
     const { service, jwt } = createService();
     jwt.verify.mockReturnValue({ sub: "user-1", email: "user@example.com" });
 
-    await expect(service.validateUser("token")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.validateUser("token")).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it("throws when user no longer exists", async () => {
     const { service, jwt, sessions, prisma } = createService();
-    jwt.verify.mockReturnValue({ sub: "user-1", email: "user@example.com", sid: "sid-1", exp: 1_900_000_000 });
+    jwt.verify.mockReturnValue({
+      sub: "user-1",
+      email: "user@example.com",
+      sid: "sid-1",
+      exp: 1_900_000_000,
+    });
     sessions.findByToken.mockResolvedValue({
       userId: "user-1",
       token: "sid-1",
@@ -304,7 +378,9 @@ describe("AuthService", () => {
     });
     prisma.user.findUnique.mockResolvedValue(null);
 
-    await expect(service.validateUser("token")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.validateUser("token")).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it("throws when revokeSessionFromToken is called with invalid token", async () => {
@@ -313,7 +389,9 @@ describe("AuthService", () => {
       throw new Error("invalid");
     });
 
-    await expect(service.revokeSessionFromToken("bad-token")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(
+      service.revokeSessionFromToken("bad-token"),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it("returns null for invalid tokens", () => {
@@ -329,20 +407,28 @@ describe("AuthService", () => {
     const { service, prisma, mailer } = createService();
     prisma.user.findUnique.mockResolvedValue(null);
 
-    await expect(service.requestPasswordReset({ email: "missing@example.com" })).resolves.toBeUndefined();
+    await expect(
+      service.requestPasswordReset({ email: "missing@example.com" }),
+    ).resolves.toBeUndefined();
     expect(prisma.magicLink.create).not.toHaveBeenCalled();
     expect(mailer.sendPasswordResetLink).not.toHaveBeenCalled();
   });
 
   it("creates reset token and sends email for existing user", async () => {
     const { service, prisma, mailer } = createService();
-    prisma.user.findUnique.mockResolvedValue({ id: "u1", email: "user@example.com" });
+    prisma.user.findUnique.mockResolvedValue({
+      id: "u1",
+      email: "user@example.com",
+    });
 
     await service.requestPasswordReset({ email: "user@example.com" });
 
     expect(prisma.magicLink.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ email: "user@example.com", token: expect.any(String) }),
+        data: expect.objectContaining({
+          email: "user@example.com",
+          token: expect.any(String),
+        }),
       }),
     );
     expect(mailer.sendPasswordResetLink).toHaveBeenCalledWith(
@@ -370,6 +456,7 @@ describe("AuthService", () => {
     bcrypt.hash.mockResolvedValue("new-hash");
     prisma.user.update.mockResolvedValue({});
     prisma.magicLink.update.mockResolvedValue({});
+    prisma.session.updateMany.mockResolvedValue({ count: 1 });
 
     await service.resetPassword({ token: "token", password: "newpassword" });
 
@@ -381,15 +468,20 @@ describe("AuthService", () => {
       where: { id: "ml1" },
       data: { usedAt: expect.any(Date) },
     });
+    expect(prisma.session.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
   });
 
   it("rejects invalid reset token", async () => {
     const { service, prisma } = createService();
     prisma.magicLink.findUnique.mockResolvedValue(null);
 
-    await expect(service.resetPassword({ token: "bad", password: "newpassword" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.resetPassword({ token: "bad", password: "newpassword" }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
-
 
   it("rejects reset token when mapped user does not exist", async () => {
     const { service, prisma } = createService();
@@ -401,7 +493,9 @@ describe("AuthService", () => {
     });
     prisma.user.findUnique.mockResolvedValue(null);
 
-    await expect(service.resetPassword({ token: "token", password: "newpassword" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.resetPassword({ token: "token", password: "newpassword" }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("throws when issued JWT payload has no exp", async () => {
@@ -417,7 +511,11 @@ describe("AuthService", () => {
       role: "editor",
     });
     jwt.sign.mockReturnValue("signed-token");
-    jwt.verify.mockReturnValue({ sub: "user-1", email: "test@example.com", sid: "sid-1" });
+    jwt.verify.mockReturnValue({
+      sub: "user-1",
+      email: "test@example.com",
+      sid: "sid-1",
+    });
 
     await expect(
       service.register({ email: "test@example.com", password: "Password123" }),

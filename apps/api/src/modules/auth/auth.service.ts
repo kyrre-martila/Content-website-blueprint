@@ -58,9 +58,10 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {
     const configuredRounds = Number(config.get("BCRYPT_SALT_ROUNDS"));
-    this.saltRounds = Number.isFinite(configuredRounds) && configuredRounds > 0
-      ? configuredRounds
-      : 10;
+    this.saltRounds =
+      Number.isFinite(configuredRounds) && configuredRounds > 0
+        ? configuredRounds
+        : 10;
   }
 
   async hashPassword(password: string): Promise<string> {
@@ -125,7 +126,10 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
-    const isValid = await this.comparePassword(input.password, user.passwordHash);
+    const isValid = await this.comparePassword(
+      input.password,
+      user.passwordHash,
+    );
     if (!isValid) {
       throw new UnauthorizedException("Invalid credentials");
     }
@@ -133,8 +137,6 @@ export class AuthService {
     const accessToken = await this.issueAccessTokenForUser(user, context);
     return { user: this.toPublicUser(user), accessToken };
   }
-
-
 
   async requestPasswordReset(input: { email: string }): Promise<void> {
     const email = input.email.trim().toLowerCase();
@@ -158,15 +160,26 @@ export class AuthService {
     await this.mailer.sendPasswordResetLink(email, resetUrl);
   }
 
-  async resetPassword(input: { token: string; password: string }): Promise<void> {
+  async resetPassword(input: {
+    token: string;
+    password: string;
+  }): Promise<void> {
     const token = input.token.trim();
-    const magicLink = await this.prisma.magicLink.findUnique({ where: { token } });
+    const magicLink = await this.prisma.magicLink.findUnique({
+      where: { token },
+    });
 
-    if (!magicLink || magicLink.usedAt || magicLink.expiresAt.getTime() <= Date.now()) {
+    if (
+      !magicLink ||
+      magicLink.usedAt ||
+      magicLink.expiresAt.getTime() <= Date.now()
+    ) {
       throw new BadRequestException("Invalid or expired reset token");
     }
 
-    const user = await this.prisma.user.findUnique({ where: { email: magicLink.email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: magicLink.email },
+    });
     if (!user) {
       throw new BadRequestException("Invalid or expired reset token");
     }
@@ -182,10 +195,19 @@ export class AuthService {
         where: { id: magicLink.id },
         data: { usedAt: new Date() },
       }),
+      this.prisma.session.updateMany({
+        where: {
+          userId: user.id,
+          revokedAt: null,
+        },
+        data: { revokedAt: new Date() },
+      }),
     ]);
   }
 
-  async authenticate(token: string): Promise<{ payload: JwtPayload; user: PublicUser }> {
+  async authenticate(
+    token: string,
+  ): Promise<{ payload: JwtPayload; user: PublicUser }> {
     const payload = this.decodeToken(token);
     if (!payload) {
       throw new UnauthorizedException("Invalid token");
@@ -193,7 +215,9 @@ export class AuthService {
 
     await this.assertSessionIsActive(payload);
 
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
     if (!user) {
       throw new UnauthorizedException("Invalid token");
     }
@@ -240,7 +264,11 @@ export class AuthService {
     context: { ip?: string | null; userAgent?: string | null },
   ): Promise<string> {
     const sid = randomUUID();
-    const accessToken = this.signToken({ sub: user.id, email: user.email, sid });
+    const accessToken = this.signToken({
+      sub: user.id,
+      email: user.email,
+      sid,
+    });
     const verified = this.decodeToken(accessToken);
     if (!verified?.exp) {
       throw new UnauthorizedException("Unable to create session token");
@@ -257,14 +285,13 @@ export class AuthService {
     return accessToken;
   }
 
-
-
   private generateMagicLinkToken(): string {
     return randomBytes(32).toString("hex");
   }
 
   private buildPasswordResetUrl(token: string): string {
-    const appUrl = this.config.get<string>("APP_URL") ?? "http://localhost:3000";
+    const appUrl =
+      this.config.get<string>("APP_URL") ?? "http://localhost:3000";
     const base = appUrl.endsWith("/") ? appUrl.slice(0, -1) : appUrl;
     return `${base}/auth/reset-password?token=${encodeURIComponent(token)}`;
   }

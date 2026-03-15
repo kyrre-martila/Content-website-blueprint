@@ -26,10 +26,11 @@ Required minimum:
 - `API_CORS_ORIGINS`
 - `REGISTRATION_ENABLED=false`
 - `NEXT_PUBLIC_REGISTRATION_ENABLED=false`
+- `ALLOW_PUBLIC_REGISTRATION_IN_HARDENED_ENV=false`
 
 Use cryptographically random values for `JWT_SECRET` and `COOKIE_SECRET` (32+ chars, mixed character types).
 
-Public self-registration is disabled by default in this blueprint. For agency/client deployments, keep registration disabled and create users via admin workflows or invitation flows.
+Public self-registration is disabled by default in this blueprint. For agency/client deployments, keep registration disabled and create users via admin workflows or invitation flows. Even if someone toggles `REGISTRATION_ENABLED=true`, hardened environments (`production`/`staging`) still require `ALLOW_PUBLIC_REGISTRATION_IN_HARDENED_ENV=true` before API registration is accepted.
 
 ### Fail-fast startup behavior
 
@@ -95,7 +96,13 @@ Example Docker health check (readiness-style):
 services:
   api:
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
       interval: 10s
       timeout: 3s
       retries: 5
