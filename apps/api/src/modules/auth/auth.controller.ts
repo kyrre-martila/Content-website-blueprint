@@ -278,6 +278,20 @@ export class AuthController {
   }
 
   private isRegistrationEnabled(): boolean {
-    return this.config.get<string>("REGISTRATION_ENABLED") === "true";
+    const registrationEnabled =
+      this.config.get<string>("REGISTRATION_ENABLED") === "true";
+
+    if (!registrationEnabled) {
+      return false;
+    }
+
+    if (!isHardenedEnvironment()) {
+      return true;
+    }
+
+    return (
+      this.config.get<string>("ALLOW_PUBLIC_REGISTRATION_IN_HARDENED_ENV") ===
+      "true"
+    );
   }
 }

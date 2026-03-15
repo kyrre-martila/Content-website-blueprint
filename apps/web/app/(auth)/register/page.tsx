@@ -48,8 +48,8 @@ export default function RegisterPage() {
   };
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = event.target;
-    setForm((f) => ({ ...f, [name]: type === "checkbox" ? checked : value }));
+    const { name, value } = event.target;
+    setForm((f) => ({ ...f, [name]: value }));
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -91,7 +91,10 @@ export default function RegisterPage() {
         }),
       });
       if (res.ok) {
-        setStatus({ tone: "success", message: "Account created successfully." });
+        setStatus({
+          tone: "success",
+          message: "Account created successfully.",
+        });
         window.location.href = "/admin/profile";
       } else {
         const err = await res.text();
@@ -138,7 +141,8 @@ export default function RegisterPage() {
 
           {!registrationEnabled && (
             <p className="auth__message auth__message--info" role="status">
-              Registration is disabled. Please contact your administrator.
+              Self-service registration is disabled. Ask your administrator for
+              an invitation or account setup.
             </p>
           )}
 

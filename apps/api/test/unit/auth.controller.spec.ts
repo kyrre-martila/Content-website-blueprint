@@ -12,6 +12,16 @@ import type { AuthService } from "../../src/modules/auth/auth.service";
 import type { AuditService } from "../../src/modules/audit/audit.service";
 
 describe("AuthController", () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  beforeEach(() => {
+    process.env.NODE_ENV = "test";
+  });
+
+  afterAll(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
   function makeReq(): Request {
     return {
       ip: "127.0.0.1",
@@ -30,6 +40,7 @@ describe("AuthController", () => {
 
   function makeSut(input?: {
     registrationEnabled?: boolean;
+    allowPublicRegistrationInHardenedEnv?: boolean;
     loginError?: Error;
   }) {
     const auth = {
@@ -61,6 +72,9 @@ describe("AuthController", () => {
       get: jest.fn((key: string) => {
         if (key === "REGISTRATION_ENABLED") {
           return input?.registrationEnabled === false ? "false" : "true";
+        }
+        if (key === "ALLOW_PUBLIC_REGISTRATION_IN_HARDENED_ENV") {
+          return input?.allowPublicRegistrationInHardenedEnv ? "true" : "false";
         }
         return undefined;
       }),
@@ -132,5 +146,37 @@ describe("AuthController", () => {
     ).rejects.toBeInstanceOf(HttpException);
 
     expect(audit.log).not.toHaveBeenCalled();
+  });
+
+  it("blocks registration in hardened environments without explicit override", async () => {
+    process.env.NODE_ENV = "production";
+    const { controller } = makeSut({
+      registrationEnabled: true,
+      allowPublicRegistrationInHardenedEnv: false,
+    });
+
+    await expect(
+      controller.register(
+        { email: "new@example.com", password: "password123", name: "New User" },
+        makeReq(),
+        makeRes(),
+      ),
+    ).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it("allows registration in hardened environments with explicit override", async () => {
+    process.env.NODE_ENV = "production";
+    const { controller, auth } = makeSut({
+      registrationEnabled: true,
+      allowPublicRegistrationInHardenedEnv: true,
+    });
+
+    await controller.register(
+      { email: "new@example.com", password: "password123", name: "New User" },
+      makeReq(),
+      makeRes(),
+    );
+
+    expect(auth.register).toHaveBeenCalled();
   });
 });
