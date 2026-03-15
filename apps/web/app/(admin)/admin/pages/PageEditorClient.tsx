@@ -427,6 +427,12 @@ export function PageEditorClient({
   const [hasMoreRevisions, setHasMoreRevisions] = React.useState(false);
   const [isLoadingRevisions, setIsLoadingRevisions] = React.useState(false);
   const [isRestoringRevision, setIsRestoringRevision] = React.useState(false);
+  const [pendingRestoreRevision, setPendingRestoreRevision] =
+    React.useState<AdminPageRevision | null>(null);
+  const [pendingRemoveBlock, setPendingRemoveBlock] = React.useState<{
+    index: number;
+    summary: string;
+  } | null>(null);
   const [media, setMedia] = React.useState<AdminMedia[]>([]);
   const [nextBlockType, setNextBlockType] =
     React.useState<AdminPageBlockType>("hero");
@@ -493,13 +499,6 @@ export function PageEditorClient({
 
   async function restoreRevision(revisionId: string) {
     if (!initialPage?.id) {
-      return;
-    }
-
-    const confirmation = window.confirm(
-      "Restore this page revision? Current content will be replaced.",
-    );
-    if (!confirmation) {
       return;
     }
 
@@ -582,14 +581,23 @@ export function PageEditorClient({
   }
 
   function removeBlock(index: number) {
-    const confirmation = window.confirm(
-      "Remove this section from the page? This will discard the section content.",
-    );
-    if (!confirmation) {
-      setStatus("Section removal cancelled.");
+    const block = blocks[index];
+    if (!block) {
       return;
     }
 
+    setPendingRemoveBlock({
+      index,
+      summary: getSectionSummary(block),
+    });
+  }
+
+  function confirmRemoveBlock() {
+    if (!pendingRemoveBlock) {
+      return;
+    }
+
+    const { index } = pendingRemoveBlock;
     setBlocks((current) => {
       const removed = current[index];
       const next = current.filter((_, idx) => idx !== index);
@@ -600,6 +608,7 @@ export function PageEditorClient({
     });
     setStatus(`Removed block #${index + 1}.`);
     setError(null);
+    setPendingRemoveBlock(null);
   }
 
   function moveBlock(index: number, direction: -1 | 1) {
@@ -1518,7 +1527,7 @@ export function PageEditorClient({
                   <span>{revision.revisionNote || "Snapshot"}</span>{" "}
                   <button
                     type="button"
-                    onClick={() => void restoreRevision(revision.id)}
+                    onClick={() => setPendingRestoreRevision(revision)}
                     disabled={isRestoringRevision}
                   >
                     {isRestoringRevision ? "Restoring..." : "Restore"}
@@ -1582,6 +1591,66 @@ export function PageEditorClient({
           )}
         </div>
       </form>
+      <DestructiveConfirmModal
+        open={Boolean(pendingRestoreRevision)}
+        title="Restore page revision"
+        description="This replaces current page content, metadata, and workflow state with an older revision. This action cannot be undone."
+        confirmLabel="Restore revision"
+        details={
+          pendingRestoreRevision && initialPage
+            ? [
+                { label: "Page title", value: initialPage.title },
+                { label: "Page URL", value: `/page/${initialPage.slug}` },
+                {
+                  label: "Revision timestamp",
+                  value: new Date(
+                    pendingRestoreRevision.createdAt,
+                  ).toLocaleString(),
+                },
+                {
+                  label: "Revision note",
+                  value: pendingRestoreRevision.revisionNote ?? "Snapshot",
+                },
+              ]
+            : []
+        }
+        isProcessing={isRestoringRevision}
+        onCancel={() => setPendingRestoreRevision(null)}
+        onConfirm={() => {
+          if (!pendingRestoreRevision) {
+            return;
+          }
+
+          void restoreRevision(pendingRestoreRevision.id).then(() => {
+            setPendingRestoreRevision(null);
+          });
+        }}
+      />
+
+      <DestructiveConfirmModal
+        open={Boolean(pendingRemoveBlock)}
+        title="Remove page section"
+        description="This removes the selected section and all of its content from this page draft. Save is required to publish this change."
+        confirmLabel="Remove section"
+        details={
+          pendingRemoveBlock
+            ? [
+                {
+                  label: "Section",
+                  value: `Block #${pendingRemoveBlock.index + 1}: ${pendingRemoveBlock.summary}`,
+                },
+                {
+                  label: "Impact",
+                  value:
+                    "Section content will be discarded from this page layout.",
+                },
+              ]
+            : []
+        }
+        onCancel={() => setPendingRemoveBlock(null)}
+        onConfirm={confirmRemoveBlock}
+      />
+
       <DestructiveConfirmModal
         open={showDeleteModal}
         title="Delete page permanently"
