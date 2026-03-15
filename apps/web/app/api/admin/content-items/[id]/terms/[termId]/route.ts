@@ -5,7 +5,7 @@ import { proxyAdminJson } from "../../../../upstream";
 type Params = { params: Promise<{ id: string; termId: string }> };
 
 export async function DELETE(_: Request, { params }: Params) {
-  const denied = await requireMinimumAdminRole();
+  const denied = await requireMinimumAdminRole("admin");
   if (denied) return denied;
 
   const { id, termId } = await params;

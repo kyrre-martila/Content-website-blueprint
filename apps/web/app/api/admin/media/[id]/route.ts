@@ -32,7 +32,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
-  const denied = await requireMinimumAdminRole("editor");
+  const denied = await requireMinimumAdminRole("admin");
   if (denied) {
     return denied;
   }

@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import type { AdminRedirect } from "../../../../lib/admin/redirects";
+import { DestructiveConfirmModal } from "../components/DestructiveConfirmModal";
 
 type RedirectFormState = {
   fromPath: string;
@@ -27,6 +28,9 @@ export function RedirectsAdminClient({
   const [error, setError] = React.useState<string | null>(null);
   const [status, setStatus] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [pendingDelete, setPendingDelete] =
+    React.useState<AdminRedirect | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   function resetForm() {
     setForm(EMPTY_FORM);
@@ -132,16 +136,17 @@ export function RedirectsAdminClient({
     }
   }
 
-  async function deleteRedirect(id: string) {
-    if (!window.confirm("Delete this redirect?")) {
+  async function deleteRedirect() {
+    if (!pendingDelete) {
       return;
     }
 
     setError(null);
     setStatus(null);
+    setIsDeleting(true);
 
     try {
-      const res = await fetch(`/api/admin/redirects/${id}`, {
+      const res = await fetch(`/api/admin/redirects/${pendingDelete.id}`, {
         method: "DELETE",
       });
 
@@ -151,12 +156,15 @@ export function RedirectsAdminClient({
       }
 
       await reloadRedirects();
-      if (editingId === id) {
+      if (editingId === pendingDelete.id) {
         resetForm();
       }
+      setPendingDelete(null);
       setStatus("Redirect deleted.");
     } catch {
       setError("Network error while deleting redirect.");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -252,10 +260,7 @@ export function RedirectsAdminClient({
               <button type="button" onClick={() => editRedirect(item)}>
                 Edit
               </button>
-              <button
-                type="button"
-                onClick={() => void deleteRedirect(item.id)}
-              >
+              <button type="button" onClick={() => setPendingDelete(item)}>
                 Delete
               </button>
             </div>
@@ -266,6 +271,29 @@ export function RedirectsAdminClient({
           <p>No redirects configured yet.</p>
         ) : null}
       </div>
+
+      <DestructiveConfirmModal
+        open={Boolean(pendingDelete)}
+        title="Delete redirect rule"
+        description="Removing this redirect can break inbound links from old URLs and search indexes."
+        confirmLabel="Delete redirect"
+        details={
+          pendingDelete
+            ? [
+                { label: "From URL", value: pendingDelete.fromPath },
+                { label: "To URL", value: pendingDelete.toPath },
+                {
+                  label: "Publication impact",
+                  value:
+                    "Visitors using the old URL will no longer be forwarded automatically.",
+                },
+              ]
+            : []
+        }
+        isProcessing={isDeleting}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void deleteRedirect()}
+      />
     </section>
   );
 }
