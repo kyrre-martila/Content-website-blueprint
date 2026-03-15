@@ -46,6 +46,7 @@ import type {
 import { MediaService } from "./media.service";
 import { MediaUsageService } from "./media-usage.service";
 import { AuthService } from "../auth/auth.service";
+import { AuditService } from "../audit/audit.service";
 import {
   requireMinimumRole,
   requireSuperAdmin,
@@ -823,6 +824,7 @@ export class ContentController {
     private readonly mediaService: MediaService,
     private readonly mediaUsageService: MediaUsageService,
     private readonly auth: AuthService,
+    private readonly audit: AuditService,
   ) {}
 
   @Get("pages")
@@ -862,12 +864,20 @@ export class ContentController {
   ) {
     await requireMinimumRole(req, this.auth, "admin");
     const userId = await this.getCurrentUserId(req);
-    return this.pages.restoreRevision(
+    const restored = await this.pages.restoreRevision(
       id,
       revisionId,
       userId,
       body.revisionNote,
     );
+    this.audit.log({
+      userId,
+      action: "revision_restore",
+      entityType: "page",
+      entityId: id,
+      metadata: { revisionId },
+    });
+    return restored;
   }
 
   @Get("pages/slug/:slug")
@@ -903,12 +913,29 @@ export class ContentController {
       body.workflowStatus,
       body.published,
     );
-    return this.pages.create({
+    const page = await this.pages.create({
       ...normalizedBody,
       ...workflowUpdate,
       templateKey: body.templateKey ?? null,
       noIndex: body.noIndex ?? false,
     });
+    const userId = await this.getCurrentUserId(req);
+    this.audit.log({
+      userId,
+      action: "page_create",
+      entityType: "page",
+      entityId: page.id,
+      metadata: { slug: page.slug, published: page.published },
+    });
+    if (page.published) {
+      this.audit.log({
+        userId,
+        action: "publish",
+        entityType: "page",
+        entityId: page.id,
+      });
+    }
+    return page;
   }
 
   @Patch("pages/:id")
@@ -952,13 +979,58 @@ export class ContentController {
       body.workflowStatus,
       body.published,
     );
-    return this.pages.update(id, { ...normalizedBody, ...workflowUpdate });
+    const updated = await this.pages.update(id, {
+      ...normalizedBody,
+      ...workflowUpdate,
+    });
+    const userId = await this.getCurrentUserId(req);
+    const previousPublished = existingPage.published;
+    const nextPublished = updated.published;
+    const slugChanged =
+      body.slug !== undefined && normalizeSlug(body.slug) !== existingPage.slug;
+    this.audit.log({
+      userId,
+      action: "page_update",
+      entityType: "page",
+      entityId: id,
+      metadata: {
+        slug: updated.slug,
+        published: updated.published,
+      },
+    });
+    if (slugChanged) {
+      this.audit.log({
+        userId,
+        action: "slug_change",
+        entityType: "page",
+        entityId: id,
+        metadata: { from: existingPage.slug, to: updated.slug },
+      });
+    }
+    if (previousPublished !== nextPublished) {
+      this.audit.log({
+        userId,
+        action: nextPublished ? "publish" : "unpublish",
+        entityType: "page",
+        entityId: id,
+      });
+    }
+    return updated;
   }
 
   @Delete("pages/:id")
   async deletePage(@Req() req: Request, @Param("id") id: string) {
     await requireMinimumRole(req, this.auth, "admin");
+    const page = await this.pages.findById(id);
     await this.pages.delete(id);
+    const userId = await this.getCurrentUserId(req);
+    this.audit.log({
+      userId,
+      action: "page_delete",
+      entityType: "page",
+      entityId: id,
+      metadata: page ? { slug: page.slug } : undefined,
+    });
     return { ok: true };
   }
 
@@ -1194,12 +1266,20 @@ export class ContentController {
   ) {
     await requireMinimumRole(req, this.auth, "admin");
     const userId = await this.getCurrentUserId(req);
-    return this.contentItems.restoreRevision(
+    const restored = await this.contentItems.restoreRevision(
       id,
       revisionId,
       userId,
       body.revisionNote,
     );
+    this.audit.log({
+      userId,
+      action: "revision_restore",
+      entityType: "content_item",
+      entityId: id,
+      metadata: { revisionId },
+    });
+    return restored;
   }
 
   @Get("items/type/:contentTypeId")
@@ -1683,13 +1763,34 @@ export class ContentController {
       body.workflowStatus,
       body.published,
     );
-    return this.contentItems.create({
+    const item = await this.contentItems.create({
       ...normalizedBody,
       ...workflowUpdate,
       parentId: body.parentId ?? null,
       sortOrder: body.sortOrder ?? 0,
       noIndex: body.noIndex ?? false,
     });
+    const userId = await this.getCurrentUserId(req);
+    this.audit.log({
+      userId,
+      action: "content_item_create",
+      entityType: "content_item",
+      entityId: item.id,
+      metadata: {
+        slug: item.slug,
+        contentTypeId: item.contentTypeId,
+        published: item.published,
+      },
+    });
+    if (item.published) {
+      this.audit.log({
+        userId,
+        action: "publish",
+        entityType: "content_item",
+        entityId: item.id,
+      });
+    }
+    return item;
   }
 
   @Patch("items/:id")
@@ -1740,10 +1841,42 @@ export class ContentController {
       body.workflowStatus,
       body.published,
     );
-    return this.contentItems.update(id, {
+    const updated = await this.contentItems.update(id, {
       ...normalizedBody,
       ...workflowUpdate,
     });
+    const userId = await this.getCurrentUserId(req);
+    const slugChanged =
+      body.slug !== undefined && normalizeSlug(body.slug) !== existing.slug;
+    this.audit.log({
+      userId,
+      action: "content_item_update",
+      entityType: "content_item",
+      entityId: id,
+      metadata: {
+        slug: updated.slug,
+        contentTypeId: updated.contentTypeId,
+        published: updated.published,
+      },
+    });
+    if (slugChanged) {
+      this.audit.log({
+        userId,
+        action: "slug_change",
+        entityType: "content_item",
+        entityId: id,
+        metadata: { from: existing.slug, to: updated.slug },
+      });
+    }
+    if (existing.published !== updated.published) {
+      this.audit.log({
+        userId,
+        action: updated.published ? "publish" : "unpublish",
+        entityType: "content_item",
+        entityId: id,
+      });
+    }
+    return updated;
   }
 
   private parseScheduledDate(
@@ -1920,7 +2053,18 @@ export class ContentController {
   @Delete("items/:id")
   async deleteContentItem(@Req() req: Request, @Param("id") id: string) {
     await requireMinimumRole(req, this.auth, "admin");
+    const item = await this.contentItems.findById(id);
     await this.contentItems.delete(id);
+    const userId = await this.getCurrentUserId(req);
+    this.audit.log({
+      userId,
+      action: "content_item_delete",
+      entityType: "content_item",
+      entityId: id,
+      metadata: item
+        ? { slug: item.slug, contentTypeId: item.contentTypeId }
+        : undefined,
+    });
     return { ok: true };
   }
 

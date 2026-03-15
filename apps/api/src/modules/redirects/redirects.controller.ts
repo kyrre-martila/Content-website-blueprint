@@ -14,7 +14,9 @@ import { IsIn, IsString } from "class-validator";
 import type { Request } from "express";
 
 import { requireMinimumRole } from "../../common/auth/admin-access";
+import { readAccessToken } from "../../common/auth/read-access-token";
 import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 import { AuthService } from "../auth/auth.service";
 
 class RedirectDto {
@@ -103,6 +105,7 @@ export class RedirectsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
+    private readonly audit: AuditService,
   ) {}
 
   @Get()
@@ -134,6 +137,18 @@ export class RedirectsController {
       },
     });
 
+    this.audit.log({
+      userId: await this.getCurrentUserId(req),
+      action: "redirect_create",
+      entityType: "redirect",
+      entityId: created.id,
+      metadata: {
+        fromPath: created.fromPath,
+        toPath: created.toPath,
+        statusCode: created.statusCode,
+      },
+    });
+
     return toDto(created);
   }
 
@@ -157,6 +172,18 @@ export class RedirectsController {
       },
     });
 
+    this.audit.log({
+      userId: await this.getCurrentUserId(req),
+      action: "redirect_update",
+      entityType: "redirect",
+      entityId: updated.id,
+      metadata: {
+        fromPath: updated.fromPath,
+        toPath: updated.toPath,
+        statusCode: updated.statusCode,
+      },
+    });
+
     return toDto(updated);
   }
 
@@ -167,7 +194,39 @@ export class RedirectsController {
   ): Promise<{ ok: true }> {
     await requireMinimumRole(req, this.auth, "admin");
 
+    const existing = await this.prisma.redirectRule.findUnique({
+      where: { id },
+    });
     await this.prisma.redirectRule.delete({ where: { id } });
+
+    this.audit.log({
+      userId: await this.getCurrentUserId(req),
+      action: "redirect_delete",
+      entityType: "redirect",
+      entityId: id,
+      metadata: existing
+        ? {
+            fromPath: existing.fromPath,
+            toPath: existing.toPath,
+            statusCode: existing.statusCode,
+          }
+        : undefined,
+    });
+
     return { ok: true };
+  }
+
+  private async getCurrentUserId(req: Request): Promise<string | null> {
+    const token = readAccessToken(req);
+    if (!token) {
+      return null;
+    }
+
+    try {
+      const user = await this.auth.validateUser(token);
+      return user.id;
+    } catch {
+      return null;
+    }
   }
 }

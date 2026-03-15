@@ -22,6 +22,7 @@ import type { Request, Response } from "express";
 import { readAccessToken } from "../../common/auth/read-access-token";
 import { isHardenedEnvironment } from "../../config/runtime-env";
 import { AuthService, type PublicUser } from "./auth.service";
+import { AuditService } from "../audit/audit.service";
 
 class PublicUserDto {
   @ApiProperty()
@@ -94,6 +95,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
   ) {}
 
   @Post("register")
@@ -128,15 +130,22 @@ export class AuthController {
   ): Promise<AuthResponseDto> {
     const result = await this.auth.login(dto, this.extractSessionContext(req));
     this.writeAccessCookie(req, res, result.accessToken);
+    this.audit.log({
+      userId: result.user.id,
+      action: "login",
+      entityType: "session",
+      entityId: result.user.id,
+      metadata: { email: result.user.email },
+    });
     return this.toAuthResponse(result.user);
   }
-
-
 
   @Post("forgot-password")
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: SuccessResponseDto })
-  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<SuccessResponseDto> {
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+  ): Promise<SuccessResponseDto> {
     await this.auth.requestPasswordReset(dto);
     return { success: true };
   }
@@ -144,7 +153,9 @@ export class AuthController {
   @Post("reset-password")
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: SuccessResponseDto })
-  async resetPassword(@Body() dto: ResetPasswordDto): Promise<SuccessResponseDto> {
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<SuccessResponseDto> {
     await this.auth.resetPassword(dto);
     return { success: true };
   }
@@ -161,7 +172,14 @@ export class AuthController {
       throw new UnauthorizedException("Missing token");
     }
 
+    const decoded = this.auth.decodeToken(token);
     await this.auth.revokeSessionFromToken(token);
+    this.audit.log({
+      userId: decoded?.sub ?? null,
+      action: "logout",
+      entityType: "session",
+      entityId: decoded?.sid ?? null,
+    });
     this.clearAccessCookie(req, res);
     return { success: true };
   }
