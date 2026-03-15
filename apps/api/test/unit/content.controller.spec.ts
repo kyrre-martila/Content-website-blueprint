@@ -3,7 +3,7 @@ jest.mock("bcrypt", () => ({
   compare: jest.fn(),
 }));
 
-import { BadRequestException, ConflictException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException } from "@nestjs/common";
 import type {
   ContentItemsRepository,
   ContentTypesRepository,
@@ -262,3 +262,78 @@ describe("ContentController createContentItem validation batching", () => {
     );
   });
 });
+
+
+describe("ContentController deleteMedia role enforcement", () => {
+  function makeSut(role: "editor" | "admin" | "super_admin") {
+    const pages = {} as PagesRepository;
+    const contentTypes = {} as ContentTypesRepository;
+    const contentItems = {} as ContentItemsRepository;
+    const navigation = {} as NavigationItemsRepository;
+    const settings = {} as SiteSettingsRepository;
+    const media = {} as MediaRepository;
+
+    const mediaService = {
+      delete: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<MediaService>;
+
+    const mediaUsageService = {} as MediaUsageService;
+
+    const auth = {
+      validateUser: jest.fn().mockResolvedValue({
+        id: "user-1",
+        role,
+      }),
+    } as unknown as jest.Mocked<AuthService>;
+
+    const audit = {
+      log: jest.fn(),
+    } as unknown as jest.Mocked<AuditService>;
+
+    const controller = new ContentController(
+      pages,
+      contentTypes,
+      contentItems,
+      navigation,
+      settings,
+      media,
+      mediaService,
+      mediaUsageService,
+      auth,
+      audit,
+    );
+
+    return { controller, mediaService };
+  }
+
+  it("rejects editor from deleting media", async () => {
+    const { controller, mediaService } = makeSut("editor");
+
+    await expect(controller.deleteMedia(makeRequest(), "media-1")).rejects.toEqual(
+      new ForbiddenException("Access denied: insufficient role."),
+    );
+
+    expect(mediaService.delete).not.toHaveBeenCalled();
+  });
+
+  it("allows admin deleting media", async () => {
+    const { controller, mediaService } = makeSut("admin");
+
+    await expect(controller.deleteMedia(makeRequest(), "media-2")).resolves.toEqual({
+      ok: true,
+    });
+
+    expect(mediaService.delete).toHaveBeenCalledWith("media-2");
+  });
+
+  it("allows superadmin deleting media", async () => {
+    const { controller, mediaService } = makeSut("super_admin");
+
+    await expect(controller.deleteMedia(makeRequest(), "media-3")).resolves.toEqual({
+      ok: true,
+    });
+
+    expect(mediaService.delete).toHaveBeenCalledWith("media-3");
+  });
+});
+
