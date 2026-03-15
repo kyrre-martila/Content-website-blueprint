@@ -107,6 +107,7 @@ Set up environment variables first (see [docs/OPERATIONS.md](docs/OPERATIONS.md#
 - Local/dev workflow: [INSTALL.md](INSTALL.md)
 - Production deployment workflow: [DEPLOY.md](DEPLOY.md)
 - New project bootstrap checklist: [NEW_PROJECT.md](NEW_PROJECT.md)
+- AI kickoff template for new client projects: [ai/PROJECT_KICKOFF_TEMPLATE.md](ai/PROJECT_KICKOFF_TEMPLATE.md)
 - Extended operational docs: [docs/OPERATIONS.md](docs/OPERATIONS.md)
 
 
