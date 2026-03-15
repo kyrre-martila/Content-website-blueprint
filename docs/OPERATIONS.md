@@ -41,6 +41,36 @@ If needed, run DB commands separately:
 3. Review traces in OTLP backend for failing spans.
 4. Test database connectivity: `psql $DATABASE_URL -c "select 1"`.
 5. If degraded, follow [docs/RUNBOOKS/incident-response.md](RUNBOOKS/incident-response.md).
+
+## Revision Pruning
+
+Revision history is append-only and can grow quickly on active sites. Run the pruning job on a regular cadence to control table size and backup/restore time.
+
+Recommended baseline:
+
+- **Frequency:** daily (or at least weekly for low-change sites).
+- **Retention policy:** keep the most recent `100` revisions per page/content item (default).
+- **Execution command:**
+
+```bash
+REVISION_RETENTION_COUNT=100 pnpm revisions:prune
+```
+
+The script prints a JSON summary with the number of deleted page/content-item revisions. Consider wiring this command into a platform cron job (Kubernetes CronJob, GitHub Actions schedule, or host scheduler).
+
+## Request-time Scheduling Behavior
+
+Scheduled visibility is enforced at request time:
+
+- `publishAt` / `unpublishAt` are checked by public content read paths (including sitemap generation).
+- There is **no required scheduler worker** for correctness in the default blueprint.
+- State changes become visible when new requests are served, not through a background mutation loop.
+
+Cache implications:
+
+- Web public fetches use time-based revalidation (`revalidate: 60`), so publication flips can appear up to ~60 seconds after the target timestamp.
+- If tighter SLAs are required, add one or more of: lower TTLs, explicit revalidation triggers, or a scheduler/cache-warm process for critical routes.
+
 ## Deployment Smoke Test
 
 Run the post-deploy smoke test from the repo root:

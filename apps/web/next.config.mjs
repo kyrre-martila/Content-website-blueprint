@@ -67,6 +67,37 @@ function assertValidPublicRuntimeConfig(env) {
 
 assertValidPublicRuntimeConfig(process.env);
 
+function parseOriginAllowlist(value) {
+  return (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildContentSecurityPolicy(env) {
+  const apiOrigin = env.NEXT_PUBLIC_API_URL?.trim()
+    ? new URL(env.NEXT_PUBLIC_API_URL).origin
+    : "http://localhost:4000";
+  const mediaAllowlistOrigins = parseOriginAllowlist(
+    env.NEXT_PUBLIC_CSP_MEDIA_ORIGINS,
+  );
+
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    `img-src 'self' data: blob: ${apiOrigin} ${mediaAllowlistOrigins.join(" ")}`.trim(),
+    "font-src 'self' data:",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    `connect-src 'self' ${apiOrigin}`,
+  ].join("; ");
+}
+
+const contentSecurityPolicy = buildContentSecurityPolicy(process.env);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -74,6 +105,7 @@ const nextConfig = {
     {
       source: "/(.*)",
       headers: [
+        { key: "Content-Security-Policy", value: contentSecurityPolicy },
         { key: "X-Frame-Options", value: "DENY" },
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "Referrer-Policy", value: "no-referrer" },
