@@ -2542,7 +2542,7 @@ export class ContentController {
 
   @Delete("media/:id")
   async deleteMedia(@Req() req: Request, @Param("id") id: string) {
-    await requireMinimumRole(req, this.auth, "editor");
+    await requireMinimumRole(req, this.auth, "admin");
     await this.mediaService.delete(id);
     return { ok: true };
   }
