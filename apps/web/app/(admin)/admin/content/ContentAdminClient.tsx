@@ -807,6 +807,7 @@ function ContentItemEditor({
   contentType,
   onSave,
   onDelete,
+  onDuplicate,
   getReferenceOptions,
   canUseMediaLibrary,
   canEditSlug,
@@ -832,6 +833,7 @@ function ContentItemEditor({
     data: Record<string, unknown>;
   }) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onDuplicate: (id: string) => Promise<void>;
   getReferenceOptions: (
     field: AdminContentFieldDefinition,
   ) => ReferenceOption[];
@@ -1162,6 +1164,9 @@ function ContentItemEditor({
           {action.label}
         </button>
       ))}
+      <button type="button" onClick={() => void onDuplicate(item.id)}>
+        Duplicate item
+      </button>
       <button type="button" onClick={() => void onDelete(item.id)}>
         Delete
       </button>
@@ -1596,6 +1601,38 @@ export function ContentAdminClient({
     setStatus("Entry saved.");
   }
 
+  async function duplicateContentItem(id: string) {
+    if (!selectedType) return;
+
+    const item = selectedItems.find((entry) => entry.id === id);
+    const confirmation = window.confirm(
+      `Duplicate "${item?.title ?? "this entry"}"? A new draft copy will be created.`,
+    );
+    if (!confirmation) {
+      setStatus("Duplication cancelled. The entry is unchanged.");
+      return;
+    }
+
+    setError(null);
+    setStatus(null);
+    const res = await fetch(`/api/admin/content-items/${id}/duplicate`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setError(
+        describeApiError(
+          "We could not duplicate this entry right now. Please try again.",
+          data,
+        ),
+      );
+      return;
+    }
+
+    await refreshItems(selectedType.id);
+    setStatus("Draft copy created.");
+  }
+
   async function deleteContentItem(id: string) {
     if (!selectedType) return;
 
@@ -1928,6 +1965,7 @@ export function ContentAdminClient({
               contentType={selectedType}
               onSave={(payload) => saveContentItem(payload)}
               onDelete={deleteContentItem}
+              onDuplicate={duplicateContentItem}
               getReferenceOptions={getReferenceOptions}
               canUseMediaLibrary={canUseMediaLibrary}
               canEditSlug={canEditSlug}

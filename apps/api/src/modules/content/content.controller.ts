@@ -938,6 +938,55 @@ export class ContentController {
     return page;
   }
 
+  @Post("pages/:id/duplicate")
+  async duplicatePage(@Req() req: Request, @Param("id") id: string) {
+    await requireMinimumRole(req, this.auth, "editor");
+    const existingPage = await this.pages.findById(id);
+    if (!existingPage) {
+      throw new BadRequestException("Page not found.");
+    }
+
+    const duplicateSlug = await this.generateUniquePageCopySlug(
+      existingPage.slug,
+    );
+    const duplicatedPage = await this.pages.create({
+      slug: duplicateSlug,
+      title: this.labelAsCopy(existingPage.title),
+      blocks: existingPage.blocks.map(
+        (block: (typeof existingPage.blocks)[number]) => ({
+          type: block.type,
+          data: block.data,
+          order: block.order,
+        }),
+      ),
+      seoTitle: existingPage.seoTitle,
+      seoDescription: existingPage.seoDescription,
+      seoImage: existingPage.seoImage,
+      canonicalUrl: existingPage.canonicalUrl,
+      noIndex: existingPage.noIndex,
+      published: false,
+      workflowStatus: "draft",
+      publishAt: null,
+      unpublishAt: null,
+      templateKey: existingPage.templateKey,
+    });
+
+    const userId = await this.getCurrentUserId(req);
+    this.audit.log({
+      userId,
+      action: "page_duplicate",
+      entityType: "page",
+      entityId: duplicatedPage.id,
+      metadata: {
+        sourcePageId: existingPage.id,
+        sourceSlug: existingPage.slug,
+        slug: duplicatedPage.slug,
+      },
+    });
+
+    return duplicatedPage;
+  }
+
   @Patch("pages/:id")
   async updatePage(
     @Req() req: Request,
@@ -1180,6 +1229,58 @@ export class ContentController {
         `Slug '${slug}' conflicts with another Page slug.`,
       );
     }
+  }
+
+  private labelAsCopy(title: string): string {
+    const trimmed = title.trim();
+    return trimmed ? `${trimmed} (Copy)` : "Untitled copy";
+  }
+
+  private buildCopySlug(baseSlug: string, copyNumber?: number): string {
+    const suffix = copyNumber === undefined ? "copy" : `copy-${copyNumber}`;
+    return `${baseSlug}-${suffix}`;
+  }
+
+  private async generateUniquePageCopySlug(baseSlug: string): Promise<string> {
+    for (let copyNumber = 1; copyNumber <= 100; copyNumber += 1) {
+      const candidate = this.buildCopySlug(
+        baseSlug,
+        copyNumber === 1 ? undefined : copyNumber,
+      );
+      const conflictingPage = await this.pages.findBySlug(candidate);
+      const conflictingContentType =
+        await this.contentTypes.findBySlug(candidate);
+      if (!conflictingPage && !conflictingContentType) {
+        return candidate;
+      }
+    }
+
+    throw new ConflictException(
+      "Unable to generate a unique slug for duplicated page.",
+    );
+  }
+
+  private async generateUniqueContentItemCopySlug(
+    contentTypeSlug: string,
+    baseSlug: string,
+  ): Promise<string> {
+    for (let copyNumber = 1; copyNumber <= 100; copyNumber += 1) {
+      const candidate = this.buildCopySlug(
+        baseSlug,
+        copyNumber === 1 ? undefined : copyNumber,
+      );
+      const conflict = await this.contentItems.findBySlug(
+        contentTypeSlug,
+        candidate,
+      );
+      if (!conflict) {
+        return candidate;
+      }
+    }
+
+    throw new ConflictException(
+      "Unable to generate a unique slug for duplicated content item.",
+    );
   }
 
   private async ensureContentTypeSlugDoesNotConflict(
@@ -1791,6 +1892,60 @@ export class ContentController {
       });
     }
     return item;
+  }
+
+  @Post("items/:id/duplicate")
+  async duplicateContentItem(@Req() req: Request, @Param("id") id: string) {
+    await requireMinimumRole(req, this.auth, "editor");
+    const existingItem = await this.contentItems.findById(id);
+    if (!existingItem) {
+      throw new BadRequestException("Content item not found.");
+    }
+
+    const contentType = await this.contentTypes.findById(
+      existingItem.contentTypeId,
+    );
+    if (!contentType) {
+      throw new BadRequestException("Invalid content type.");
+    }
+
+    const duplicateSlug = await this.generateUniqueContentItemCopySlug(
+      contentType.slug,
+      existingItem.slug,
+    );
+    const duplicatedItem = await this.contentItems.create({
+      contentTypeId: existingItem.contentTypeId,
+      parentId: existingItem.parentId,
+      sortOrder: existingItem.sortOrder,
+      slug: duplicateSlug,
+      title: this.labelAsCopy(existingItem.title),
+      seoTitle: existingItem.seoTitle,
+      seoDescription: existingItem.seoDescription,
+      seoImage: existingItem.seoImage,
+      canonicalUrl: existingItem.canonicalUrl,
+      noIndex: existingItem.noIndex,
+      data: existingItem.data,
+      published: false,
+      workflowStatus: "draft",
+      publishAt: null,
+      unpublishAt: null,
+    });
+
+    const userId = await this.getCurrentUserId(req);
+    this.audit.log({
+      userId,
+      action: "content_item_duplicate",
+      entityType: "content_item",
+      entityId: duplicatedItem.id,
+      metadata: {
+        sourceItemId: existingItem.id,
+        sourceSlug: existingItem.slug,
+        slug: duplicatedItem.slug,
+        contentTypeId: duplicatedItem.contentTypeId,
+      },
+    });
+
+    return duplicatedItem;
   }
 
   @Patch("items/:id")
