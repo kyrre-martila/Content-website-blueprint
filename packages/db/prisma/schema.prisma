@@ -21,6 +21,24 @@ enum WorkflowStatus {
   archived
 }
 
+enum SiteEnvironmentName {
+  live
+  staging
+}
+
+enum SiteEnvironmentState {
+  active
+  stale
+  deleted
+}
+
+enum SiteEnvironmentLockStatus {
+  idle
+  syncing
+  pushing
+  deleting
+}
+
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -40,6 +58,7 @@ model User {
   credentials   Credential[]
   sessions      Session[]
   auditLogs     AuditLog[]
+  environmentStatuses SiteEnvironmentStatus[]
 
   @@index([firstName, lastName])
   @@index([email])
@@ -267,6 +286,22 @@ model RedirectRule {
 model SiteSetting {
   key   String @id
   value String
+}
+
+model SiteEnvironmentStatus {
+  environment    SiteEnvironmentName       @id
+  state          SiteEnvironmentState      @default(active)
+  lastSyncedAt   DateTime?
+  lastPushedAt   DateTime?
+  lastResetAt    DateTime?
+  lockStatus     SiteEnvironmentLockStatus @default(idle)
+  lastActorUserId String?
+  lastActorUser  User?                     @relation(fields: [lastActorUserId], references: [id], onDelete: SetNull)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@index([lastActorUserId])
+  @@index([lockStatus])
 }
 
 model Media {

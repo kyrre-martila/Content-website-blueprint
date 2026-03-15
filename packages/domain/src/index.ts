@@ -34,6 +34,10 @@ export type {
   ContentItemTreeNode,
   NavigationItem,
   SiteSetting,
+  SiteEnvironmentName,
+  SiteEnvironmentState,
+  SiteEnvironmentLockStatus,
+  SiteEnvironmentStatus,
   Media,
   Taxonomy,
   Term,
@@ -47,6 +51,8 @@ export type {
   PaginationParams,
   NavigationItemsRepository,
   SiteSettingsRepository,
+  SiteEnvironmentStatusRepository,
+  UpdateSiteEnvironmentStatusInput,
   MediaRepository,
   TaxonomiesRepository,
   TermsRepository,
@@ -59,3 +65,5 @@ export type {
   MediaUploadMetadata,
   UploadedMedia,
 } from "./content/media-storage.provider.js";
+
+export { StagingService } from "./staging/staging.service.js";
