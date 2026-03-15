@@ -22,12 +22,12 @@ export default async function AdminStagingPage() {
     <section className="hero" aria-labelledby="staging-heading">
       <p className="hero__eyebrow">Website operations</p>
       <h1 id="staging-heading" className="hero__title">
-        Staging access
+        Staging management
       </h1>
       <p className="hero__subtitle">
-        Use this area to validate content changes before public launch. Admins
-        can inspect status and log into staging, while superadmins can run
-        destructive staging actions.
+        Review staging environment health and run deployment operations.
+        Admins can view status details, while superadmins can run destructive
+        staging actions.
       </p>
       <StagingControlsClient
         canTriggerActions={canTriggerStagingActions(role)}
