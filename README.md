@@ -26,19 +26,19 @@ This repository is a blueprint, not a finished product. The architecture and def
 
 ### Production readiness matrix
 
-| Area | Status | Notes |
-| --- | --- | --- |
-| Auth | **implemented** | Local email/password auth with JWT + server-side session validation, password reset flow, and cookie-first web auth are available now. |
-| RBAC | **partially implemented** | Role-aware admin access exists (`editor`/`admin`/`super_admin`), but fine-grained, policy-level permissions are project-specific. |
-| Pages/content editing | **implemented** | Admin APIs and web UI support editing pages, blocks, content types, and content items. |
-| Media storage | **partially implemented** | Local filesystem provider is production-usable for single-server setups; cloud object storage providers are extension points. |
-| Revisions | **implemented** | Page/content revision history and restore flows are included in the content domain. |
-| Scheduled publishing | **planned** | Not shipped as an automated scheduling workflow in this blueprint. |
-| Approval workflow | **planned** | Multi-step editorial approval flows are intentionally left for project customization. |
-| Audit log | **partially implemented** | Audit logging infrastructure exists, but full editorial-event coverage should be extended per project requirements. |
-| Redirects | **implemented** | Legacy slug redirects are supported in public content resolution. |
-| Deployment | **implemented** | Docker + CI/CD-oriented deployment scaffolding and production checks are included. |
-| Staging | **partially implemented** | Environment-aware hardening exists; teams still need to provision and operate their own staging environment/process. |
+| Area                  | Status                    | Notes                                                                                                                                              |
+| --------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth                  | **implemented**           | Local email/password auth with JWT + server-side session validation, password reset flow, and cookie-first web auth are available now.             |
+| RBAC                  | **partially implemented** | Role-aware admin access exists (`editor`/`admin`/`super_admin`), but fine-grained, policy-level permissions are project-specific.                  |
+| Pages/content editing | **implemented**           | Admin APIs and web UI support editing pages, blocks, content types, and content items.                                                             |
+| Media storage         | **partially implemented** | Local filesystem provider is production-usable for single-server setups; cloud object storage providers are extension points.                      |
+| Revisions             | **implemented**           | Page/content revision history and restore flows are included in the content domain, with cursor pagination and a keep-latest-100 retention policy. |
+| Scheduled publishing  | **planned**               | Not shipped as an automated scheduling workflow in this blueprint.                                                                                 |
+| Approval workflow     | **planned**               | Multi-step editorial approval flows are intentionally left for project customization.                                                              |
+| Audit log             | **partially implemented** | Audit logging infrastructure exists, but full editorial-event coverage should be extended per project requirements.                                |
+| Redirects             | **implemented**           | Legacy slug redirects are supported in public content resolution.                                                                                  |
+| Deployment            | **implemented**           | Docker + CI/CD-oriented deployment scaffolding and production checks are included.                                                                 |
+| Staging               | **partially implemented** | Environment-aware hardening exists; teams still need to provision and operate their own staging environment/process.                               |
 
 ### Before first client launch
 
@@ -78,6 +78,7 @@ Set up environment variables first (see [docs/OPERATIONS.md](docs/OPERATIONS.md#
 - `pnpm dev` — run API + web in development mode.
 - `pnpm build` — build all workspace apps/packages.
 - `pnpm start` — start API + web from production builds.
+- `pnpm revisions:prune` — prune stale page/content revisions beyond the keep-latest retention threshold (default: 100).
 - `pnpm start:api` / `pnpm start:web` — start only one service.
 
 ## Overview

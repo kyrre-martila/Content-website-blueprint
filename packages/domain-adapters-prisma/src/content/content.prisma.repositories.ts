@@ -60,6 +60,7 @@ const PAGE_BLOCK_TYPES: PageBlockType[] = [
 
 const DEFAULT_PAGINATION_LIMIT = 50;
 const MAX_PAGINATION_LIMIT = 100;
+const REVISION_RETENTION_COUNT = 100;
 
 function normalizePaginationLimit(limit?: number): number {
   if (typeof limit !== "number" || Number.isNaN(limit)) {
@@ -95,6 +96,54 @@ function buildPaginationArgs(
   }
 
   return { take };
+}
+
+async function pruneOlderPageRevisions(
+  tx: Prisma.TransactionClient,
+  pageId: string,
+) {
+  const revisionsToDelete = await tx.pageRevision.findMany({
+    where: { pageId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip: REVISION_RETENTION_COUNT,
+    select: { id: true },
+  });
+
+  if (revisionsToDelete.length === 0) {
+    return;
+  }
+
+  await tx.pageRevision.deleteMany({
+    where: {
+      id: {
+        in: revisionsToDelete.map((revision: { id: string }) => revision.id),
+      },
+    },
+  });
+}
+
+async function pruneOlderContentItemRevisions(
+  tx: Prisma.TransactionClient,
+  contentItemId: string,
+) {
+  const revisionsToDelete = await tx.contentItemRevision.findMany({
+    where: { contentItemId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip: REVISION_RETENTION_COUNT,
+    select: { id: true },
+  });
+
+  if (revisionsToDelete.length === 0) {
+    return;
+  }
+
+  await tx.contentItemRevision.deleteMany({
+    where: {
+      id: {
+        in: revisionsToDelete.map((revision: { id: string }) => revision.id),
+      },
+    },
+  });
 }
 
 const ROUTE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -612,9 +661,12 @@ export class PagesPrismaRepository implements PagesRepository {
 
   async update(
     id: string,
-    data: Partial<Omit<Page, "id" | "createdAt" | "updatedAt">>,
+    data: Partial<Omit<Page, "id" | "createdAt" | "updatedAt">> & {
+      updatedById?: string | null;
+      revisionNote?: string | null;
+    },
   ): Promise<Page> {
-    const { blocks, ...pageData } = data;
+    const { blocks, updatedById, revisionNote, ...pageData } = data;
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const existing = await tx.page.findUnique({
@@ -629,8 +681,12 @@ export class PagesPrismaRepository implements PagesRepository {
         data: {
           pageId: existing.id,
           snapshot: existing as unknown as InputJsonValue,
+          createdById: updatedById ?? null,
+          revisionNote: revisionNote ?? null,
         },
       });
+
+      await pruneOlderPageRevisions(tx, existing.id);
 
       const nextSlug =
         typeof pageData.slug === "string" ? pageData.slug : existing.slug;
@@ -697,12 +753,32 @@ export class PagesPrismaRepository implements PagesRepository {
     });
   }
 
-  async listRevisions(pageId: string): Promise<PageRevision[]> {
+  async listRevisions(
+    pageId: string,
+    pagination?: PaginationParams,
+  ): Promise<{ items: PageRevision[]; nextCursor: string | null }> {
+    const limit = normalizePaginationLimit(pagination?.limit);
+    const cursor =
+      typeof pagination?.cursor === "string" && pagination.cursor.trim()
+        ? pagination.cursor.trim()
+        : undefined;
+
     const revisions = await this.prisma.pageRevision.findMany({
       where: { pageId },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
-    return revisions.map(mapPageRevision);
+
+    const hasMore = revisions.length > limit;
+    const items = (hasMore ? revisions.slice(0, limit) : revisions).map(
+      mapPageRevision,
+    );
+
+    return {
+      items,
+      nextCursor: hasMore ? (items[items.length - 1]?.id ?? null) : null,
+    };
   }
 
   async findRevisionById(
@@ -751,13 +827,55 @@ export class PagesPrismaRepository implements PagesRepository {
         ? snapshot.blocks
         : [];
 
+      const restoredSlug =
+        typeof snapshot.slug === "string" ? snapshot.slug : current.slug;
+      assertValidRouteSlug(restoredSlug, "Page");
+
+      if (restoredSlug !== current.slug) {
+        const activeConflict = await tx.page.findFirst({
+          where: { slug: restoredSlug, id: { not: pageId } },
+          select: { id: true },
+        });
+        if (activeConflict) {
+          throw new DomainError(
+            "VALIDATION_ERROR",
+            `Cannot restore revision because slug '${restoredSlug}' is already used by another page.`,
+          );
+        }
+
+        const redirectConflict = await tx.pageSlugRedirect.findFirst({
+          where: { sourceSlug: restoredSlug, pageId: { not: pageId } },
+          select: { id: true },
+        });
+        if (redirectConflict) {
+          throw new DomainError(
+            "VALIDATION_ERROR",
+            `Cannot restore revision because slug '${restoredSlug}' is used as a redirect source.`,
+          );
+        }
+
+        await tx.pageSlugRedirect.deleteMany({
+          where: { pageId, sourceSlug: restoredSlug },
+        });
+
+        const existingRedirect = await tx.pageSlugRedirect.findUnique({
+          where: { sourceSlug: current.slug },
+          select: { id: true },
+        });
+
+        if (!existingRedirect) {
+          await tx.pageSlugRedirect.create({
+            data: { pageId, sourceSlug: current.slug },
+          });
+        }
+      }
+
       await tx.pageBlock.deleteMany({ where: { pageId } });
 
       const page = await tx.page.update({
         where: { id: pageId },
         data: {
-          slug:
-            typeof snapshot.slug === "string" ? snapshot.slug : current.slug,
+          slug: restoredSlug,
           title:
             typeof snapshot.title === "string" ? snapshot.title : current.title,
           seoTitle:
@@ -840,6 +958,8 @@ export class PagesPrismaRepository implements PagesRepository {
         },
         include: { blocks: { orderBy: { order: "asc" } } },
       });
+
+      await pruneOlderPageRevisions(tx, pageId);
 
       return mapPage(page);
     });
@@ -1293,8 +1413,13 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
 
   async update(
     id: string,
-    data: Partial<Omit<ContentItem, "id" | "createdAt" | "updatedAt">>,
+    data: Partial<Omit<ContentItem, "id" | "createdAt" | "updatedAt">> & {
+      updatedById?: string | null;
+      revisionNote?: string | null;
+    },
   ): Promise<ContentItem> {
+    const { updatedById, revisionNote, ...itemData } = data;
+
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const existing = await tx.contentItem.findUnique({ where: { id } });
       if (!existing) {
@@ -1305,12 +1430,17 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
         data: {
           contentItemId: existing.id,
           snapshot: existing as unknown as InputJsonValue,
+          createdById: updatedById ?? null,
+          revisionNote: revisionNote ?? null,
         },
       });
 
+      await pruneOlderContentItemRevisions(tx, existing.id);
+
       const nextSlug =
-        typeof data.slug === "string" ? data.slug : existing.slug;
-      const nextContentTypeId = data.contentTypeId ?? existing.contentTypeId;
+        typeof itemData.slug === "string" ? itemData.slug : existing.slug;
+      const nextContentTypeId =
+        itemData.contentTypeId ?? existing.contentTypeId;
 
       assertValidRouteSlug(nextSlug, "ContentItem");
 
@@ -1378,25 +1508,50 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
       const item = await tx.contentItem.update({
         where: { id },
         data: {
-          ...data,
+          ...itemData,
           workflowStatus:
-            data.workflowStatus === undefined ? undefined : data.workflowStatus,
-          parentId: data.parentId === undefined ? undefined : data.parentId,
-          sortOrder: data.sortOrder,
+            itemData.workflowStatus === undefined
+              ? undefined
+              : itemData.workflowStatus,
+          parentId:
+            itemData.parentId === undefined ? undefined : itemData.parentId,
+          sortOrder: itemData.sortOrder,
           data:
-            data.data === undefined ? undefined : (data.data as InputJsonValue),
+            itemData.data === undefined
+              ? undefined
+              : (itemData.data as InputJsonValue),
         },
       });
       return mapContentItem(item);
     });
   }
 
-  async listRevisions(contentItemId: string): Promise<ContentItemRevision[]> {
+  async listRevisions(
+    contentItemId: string,
+    pagination?: PaginationParams,
+  ): Promise<{ items: ContentItemRevision[]; nextCursor: string | null }> {
+    const limit = normalizePaginationLimit(pagination?.limit);
+    const cursor =
+      typeof pagination?.cursor === "string" && pagination.cursor.trim()
+        ? pagination.cursor.trim()
+        : undefined;
+
     const revisions = await this.prisma.contentItemRevision.findMany({
       where: { contentItemId },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
-    return revisions.map(mapContentItemRevision);
+
+    const hasMore = revisions.length > limit;
+    const items = (hasMore ? revisions.slice(0, limit) : revisions).map(
+      mapContentItemRevision,
+    );
+
+    return {
+      items,
+      nextCursor: hasMore ? (items[items.length - 1]?.id ?? null) : null,
+    };
   }
 
   async findRevisionById(
@@ -1443,13 +1598,80 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
       });
 
       const snapshot = revision.snapshot as Record<string, unknown>;
+      const restoredContentTypeId =
+        typeof snapshot.contentTypeId === "string"
+          ? snapshot.contentTypeId
+          : current.contentTypeId;
+      const restoredSlug =
+        typeof snapshot.slug === "string" ? snapshot.slug : current.slug;
+
+      assertValidRouteSlug(restoredSlug, "Content item");
+
+      const activeConflict = await tx.contentItem.findFirst({
+        where: {
+          id: { not: contentItemId },
+          contentTypeId: restoredContentTypeId,
+          slug: restoredSlug,
+        },
+        select: { id: true },
+      });
+      if (activeConflict) {
+        throw new DomainError(
+          "VALIDATION_ERROR",
+          `Cannot restore revision because slug '${restoredSlug}' is already used by another content item.`,
+        );
+      }
+
+      const redirectConflict = await tx.contentItemSlugRedirect.findFirst({
+        where: {
+          contentTypeId: restoredContentTypeId,
+          sourceSlug: restoredSlug,
+          contentItemId: { not: contentItemId },
+        },
+        select: { id: true },
+      });
+      if (redirectConflict) {
+        throw new DomainError(
+          "VALIDATION_ERROR",
+          `Cannot restore revision because slug '${restoredSlug}' is used as a redirect source.`,
+        );
+      }
+
+      if (
+        restoredSlug !== current.slug ||
+        restoredContentTypeId !== current.contentTypeId
+      ) {
+        await tx.contentItemSlugRedirect.deleteMany({
+          where: {
+            contentItemId,
+            contentTypeId: restoredContentTypeId,
+            sourceSlug: restoredSlug,
+          },
+        });
+
+        const existingRedirect = await tx.contentItemSlugRedirect.findFirst({
+          where: {
+            contentTypeId: current.contentTypeId,
+            sourceSlug: current.slug,
+          },
+          select: { id: true },
+        });
+
+        if (!existingRedirect) {
+          await tx.contentItemSlugRedirect.create({
+            data: {
+              contentItemId,
+              contentTypeId: current.contentTypeId,
+              sourceSlug: current.slug,
+            },
+          });
+        }
+      }
+
       const item = await tx.contentItem.update({
         where: { id: contentItemId },
         data: {
-          contentTypeId:
-            typeof snapshot.contentTypeId === "string"
-              ? snapshot.contentTypeId
-              : current.contentTypeId,
+          contentTypeId: restoredContentTypeId,
           parentId:
             snapshot.parentId === null || typeof snapshot.parentId === "string"
               ? snapshot.parentId
@@ -1458,8 +1680,7 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
             typeof snapshot.sortOrder === "number"
               ? snapshot.sortOrder
               : current.sortOrder,
-          slug:
-            typeof snapshot.slug === "string" ? snapshot.slug : current.slug,
+          slug: restoredSlug,
           title:
             typeof snapshot.title === "string" ? snapshot.title : current.title,
           seoTitle:
@@ -1510,6 +1731,8 @@ export class ContentItemsPrismaRepository implements ContentItemsRepository {
               : current.unpublishAt,
         },
       });
+
+      await pruneOlderContentItemRevisions(tx, contentItemId);
 
       return mapContentItem(item);
     });

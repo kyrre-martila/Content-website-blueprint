@@ -22,6 +22,16 @@ export type PaginationParams = {
   published?: boolean;
 };
 
+export type RevisionPaginationResult<T> = {
+  items: T[];
+  nextCursor: string | null;
+};
+
+export type RevisionWriteMetadata = {
+  updatedById?: string | null;
+  revisionNote?: string | null;
+};
+
 export interface PagesRepository {
   findMany(pagination?: PaginationParams): Promise<Page[]>;
   findById(id: string): Promise<Page | null>;
@@ -30,11 +40,18 @@ export interface PagesRepository {
   create(data: Omit<Page, "id" | "createdAt" | "updatedAt">): Promise<Page>;
   update(
     id: string,
-    data: Partial<Omit<Page, "id" | "createdAt" | "updatedAt">>,
+    data: Partial<Omit<Page, "id" | "createdAt" | "updatedAt">> &
+      RevisionWriteMetadata,
   ): Promise<Page>;
   delete(id: string): Promise<void>;
-  listRevisions(pageId: string): Promise<PageRevision[]>;
-  findRevisionById(pageId: string, revisionId: string): Promise<PageRevision | null>;
+  listRevisions(
+    pageId: string,
+    pagination?: PaginationParams,
+  ): Promise<RevisionPaginationResult<PageRevision>>;
+  findRevisionById(
+    pageId: string,
+    revisionId: string,
+  ): Promise<PageRevision | null>;
   restoreRevision(
     pageId: string,
     revisionId: string,
@@ -101,10 +118,14 @@ export interface ContentItemsRepository {
   ): Promise<ContentItem>;
   update(
     id: string,
-    data: Partial<Omit<ContentItem, "id" | "createdAt" | "updatedAt">>,
+    data: Partial<Omit<ContentItem, "id" | "createdAt" | "updatedAt">> &
+      RevisionWriteMetadata,
   ): Promise<ContentItem>;
   delete(id: string): Promise<void>;
-  listRevisions(contentItemId: string): Promise<ContentItemRevision[]>;
+  listRevisions(
+    contentItemId: string,
+    pagination?: PaginationParams,
+  ): Promise<RevisionPaginationResult<ContentItemRevision>>;
   findRevisionById(
     contentItemId: string,
     revisionId: string,

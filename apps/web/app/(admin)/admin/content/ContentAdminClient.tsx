@@ -72,6 +72,11 @@ type AdminContentItemRevision = {
   createdById: string | null;
 };
 
+type AdminContentItemRevisionListResponse = {
+  items: AdminContentItemRevision[];
+  nextCursor: string | null;
+};
+
 type ContentTypeDraft = {
   id?: string;
   name: string;
@@ -902,20 +907,35 @@ function ContentItemEditor({
   const [revisions, setRevisions] = React.useState<AdminContentItemRevision[]>(
     [],
   );
+  const [revisionCursor, setRevisionCursor] = React.useState<string | null>(
+    null,
+  );
+  const [isLoadingRevisions, setIsLoadingRevisions] = React.useState(false);
+  const [hasMoreRevisions, setHasMoreRevisions] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
-    void fetch(`/api/admin/content-items/${item.id}/revisions`, {
+    setRevisionCursor(null);
+    setHasMoreRevisions(false);
+    setIsLoadingRevisions(true);
+    void fetch(`/api/admin/content-items/${item.id}/revisions?limit=50`, {
       cache: "no-store",
     })
       .then((res) =>
         res.ok
-          ? (res.json() as Promise<AdminContentItemRevision[]>)
-          : Promise.resolve([]),
+          ? (res.json() as Promise<AdminContentItemRevisionListResponse>)
+          : Promise.resolve({ items: [], nextCursor: null }),
       )
-      .then((items) => {
+      .then((payload) => {
         if (active) {
-          setRevisions(items);
+          setRevisions(payload.items);
+          setRevisionCursor(payload.nextCursor);
+          setHasMoreRevisions(Boolean(payload.nextCursor));
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoadingRevisions(false);
         }
       });
 
@@ -923,6 +943,32 @@ function ContentItemEditor({
       active = false;
     };
   }, [item.id]);
+
+  async function loadMoreRevisions() {
+    if (!revisionCursor || isLoadingRevisions) {
+      return;
+    }
+
+    setIsLoadingRevisions(true);
+    try {
+      const res = await fetch(
+        `/api/admin/content-items/${item.id}/revisions?limit=50&cursor=${encodeURIComponent(revisionCursor)}`,
+        {
+          cache: "no-store",
+        },
+      );
+      if (!res.ok) {
+        return;
+      }
+      const payload =
+        (await res.json()) as AdminContentItemRevisionListResponse;
+      setRevisions((current) => [...current, ...payload.items]);
+      setRevisionCursor(payload.nextCursor);
+      setHasMoreRevisions(Boolean(payload.nextCursor));
+    } finally {
+      setIsLoadingRevisions(false);
+    }
+  }
 
   React.useEffect(() => {
     setValues(buildValues(contentType.fields, item.data));
@@ -1038,8 +1084,8 @@ function ContentItemEditor({
               onChange={(e) => setPublished(e.target.checked)}
             />
             <small>
-              Turn this on only when the content is ready. Draft entries stay hidden
-              from public pages.
+              Turn this on only when the content is ready. Draft entries stay
+              hidden from public pages.
             </small>
           </label>
           <label>
@@ -1063,10 +1109,12 @@ function ContentItemEditor({
             <p>
               <strong>Workflow status:</strong>{" "}
               {workflowStatusLabel(workflowStatus)} ·{" "}
-              <strong>Editorial status:</strong> {visibilityState.editorialStatus}
+              <strong>Editorial status:</strong>{" "}
+              {visibilityState.editorialStatus}
             </p>
             <p>
-              <strong>Public visibility:</strong> {visibilityState.publicVisibility}
+              <strong>Public visibility:</strong>{" "}
+              {visibilityState.publicVisibility}
             </p>
             <small>{visibilityState.guidance}</small>
             <div>
@@ -1076,8 +1124,8 @@ function ContentItemEditor({
                 </a>
               ) : (
                 <small>
-                  Public preview is unavailable until this entry is published in a
-                  publicly visible content type.
+                  Public preview is unavailable until this entry is published in
+                  a publicly visible content type.
                 </small>
               )}
               {contentType.isPublic ? (
@@ -1160,6 +1208,9 @@ function ContentItemEditor({
       )}
       <fieldset>
         <legend>Revision history</legend>
+        {isLoadingRevisions && revisions.length === 0 ? (
+          <small>Loading revisions...</small>
+        ) : null}
         {revisions.length === 0 ? <small>No revisions yet.</small> : null}
         <ul>
           {revisions.map((revision) => (
@@ -1183,6 +1234,15 @@ function ContentItemEditor({
             </li>
           ))}
         </ul>
+        {hasMoreRevisions ? (
+          <button
+            type="button"
+            onClick={() => void loadMoreRevisions()}
+            disabled={isLoadingRevisions}
+          >
+            {isLoadingRevisions ? "Loading..." : "Load older revisions"}
+          </button>
+        ) : null}
       </fieldset>
       {canAccessAdvancedSettings ? (
         WORKFLOW_ACTIONS.map((action) => (
@@ -1743,7 +1803,8 @@ export function ContentAdminClient({
     <section className="admin-pages">
       <h1 className="hero__title">Content editor</h1>
       <p>
-        Editing mode: <strong>{isSimpleMode ? "Simple mode" : "Advanced mode"}</strong>
+        Editing mode:{" "}
+        <strong>{isSimpleMode ? "Simple mode" : "Advanced mode"}</strong>
       </p>
       <p>
         Day-to-day editing happens below. Schema and field design tools are
@@ -2236,7 +2297,9 @@ export function ContentAdminClient({
               <>
                 <div>
                   Current workflow:{" "}
-                  <strong>{workflowStatusLabel(createDraft.workflowStatus)}</strong>
+                  <strong>
+                    {workflowStatusLabel(createDraft.workflowStatus)}
+                  </strong>
                 </div>
                 {WORKFLOW_ACTIONS.map((action) => (
                   <button
