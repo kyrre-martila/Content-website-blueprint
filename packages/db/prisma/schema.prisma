@@ -39,9 +39,26 @@ model User {
   updatedBy     String?  @db.VarChar(255)
   credentials   Credential[]
   sessions      Session[]
+  auditLogs     AuditLog[]
 
   @@index([firstName, lastName])
   @@index([email])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([entityType])
+  @@index([action])
 }
 
 model Credential {

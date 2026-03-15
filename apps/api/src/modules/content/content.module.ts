@@ -19,6 +19,7 @@ import { MediaController } from "./media.controller";
 import { MediaService } from "./media.service";
 import { MediaUsageService } from "./media-usage.service";
 import { AuthModule } from "../auth/auth.module";
+import { AuditModule } from "../audit/audit.module";
 import {
   MEDIA_UPLOAD_SCANNER,
   NoopMediaUploadScanner,
@@ -26,7 +27,7 @@ import {
 import { resolveMediaStorageProvider } from "./media-storage-provider.config";
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, AuditModule],
   controllers: [
     PublicContentController,
     ContentController,
