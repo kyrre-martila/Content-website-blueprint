@@ -234,6 +234,11 @@ class UpdatePageDto {
   @IsOptional()
   @IsString()
   templateKey?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  revisionNote?: string;
 }
 
 type PageBlockPayload = {
@@ -568,6 +573,11 @@ class UpdateContentItemDto {
   @IsOptional()
   @IsDateString()
   unpublishAt?: string | null;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  revisionNote?: string;
 }
 
 class AdminListQueryDto {
@@ -840,9 +850,13 @@ export class ContentController {
   }
 
   @Get("pages/:id/revisions")
-  async listPageRevisions(@Req() req: Request, @Param("id") id: string) {
+  async listPageRevisions(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Query() query: AdminListQueryDto,
+  ) {
     await requireMinimumRole(req, this.auth, "editor");
-    return this.pages.listRevisions(id);
+    return this.pages.listRevisions(id, this.buildPagination(query));
   }
 
   @Get("pages/:id/revisions/:revisionId")
@@ -1028,11 +1042,13 @@ export class ContentController {
       body.workflowStatus,
       body.published,
     );
+    const userId = await this.getCurrentUserId(req);
     const updated = await this.pages.update(id, {
       ...normalizedBody,
       ...workflowUpdate,
+      updatedById: userId,
+      revisionNote: body.revisionNote,
     });
-    const userId = await this.getCurrentUserId(req);
     const previousPublished = existingPage.published;
     const nextPublished = updated.published;
     const slugChanged =
@@ -1343,9 +1359,13 @@ export class ContentController {
   }
 
   @Get("items/:id/revisions")
-  async listContentItemRevisions(@Req() req: Request, @Param("id") id: string) {
+  async listContentItemRevisions(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Query() query: AdminListQueryDto,
+  ) {
     await requireMinimumRole(req, this.auth, "editor");
-    return this.contentItems.listRevisions(id);
+    return this.contentItems.listRevisions(id, this.buildPagination(query));
   }
 
   @Get("items/:id/revisions/:revisionId")
@@ -1996,11 +2016,13 @@ export class ContentController {
       body.workflowStatus,
       body.published,
     );
+    const userId = await this.getCurrentUserId(req);
     const updated = await this.contentItems.update(id, {
       ...normalizedBody,
       ...workflowUpdate,
+      updatedById: userId,
+      revisionNote: body.revisionNote,
     });
-    const userId = await this.getCurrentUserId(req);
     const slugChanged =
       body.slug !== undefined && normalizeSlug(body.slug) !== existing.slug;
     this.audit.log({

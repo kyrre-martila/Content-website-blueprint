@@ -16,6 +16,11 @@ type AdminPageRevision = {
   createdById: string | null;
 };
 
+type AdminPageRevisionListResponse = {
+  items: AdminPageRevision[];
+  nextCursor: string | null;
+};
+
 type WorkflowStatus =
   | "draft"
   | "in_review"
@@ -412,6 +417,10 @@ export function PageEditorClient({
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isDuplicating, setIsDuplicating] = React.useState(false);
   const [revisions, setRevisions] = React.useState<AdminPageRevision[]>([]);
+  const [revisionCursor, setRevisionCursor] = React.useState<string | null>(
+    null,
+  );
+  const [hasMoreRevisions, setHasMoreRevisions] = React.useState(false);
   const [isLoadingRevisions, setIsLoadingRevisions] = React.useState(false);
   const [isRestoringRevision, setIsRestoringRevision] = React.useState(false);
   const [media, setMedia] = React.useState<AdminMedia[]>([]);
@@ -425,17 +434,21 @@ export function PageEditorClient({
 
     let active = true;
     setIsLoadingRevisions(true);
-    void fetch(`/api/admin/pages/${initialPage.id}/revisions`, {
+    setRevisionCursor(null);
+    setHasMoreRevisions(false);
+    void fetch(`/api/admin/pages/${initialPage.id}/revisions?limit=50`, {
       cache: "no-store",
     })
       .then((res) =>
         res.ok
-          ? (res.json() as Promise<AdminPageRevision[]>)
-          : Promise.resolve([]),
+          ? (res.json() as Promise<AdminPageRevisionListResponse>)
+          : Promise.resolve({ items: [], nextCursor: null }),
       )
-      .then((items) => {
+      .then((payload) => {
         if (active) {
-          setRevisions(items);
+          setRevisions(payload.items);
+          setRevisionCursor(payload.nextCursor);
+          setHasMoreRevisions(Boolean(payload.nextCursor));
         }
       })
       .finally(() => {
@@ -448,6 +461,31 @@ export function PageEditorClient({
       active = false;
     };
   }, [initialPage?.id, status]);
+
+  async function loadMoreRevisions() {
+    if (!initialPage?.id || !revisionCursor || isLoadingRevisions) {
+      return;
+    }
+
+    setIsLoadingRevisions(true);
+    try {
+      const res = await fetch(
+        `/api/admin/pages/${initialPage.id}/revisions?limit=50&cursor=${encodeURIComponent(revisionCursor)}`,
+        {
+          cache: "no-store",
+        },
+      );
+      if (!res.ok) {
+        return;
+      }
+      const payload = (await res.json()) as AdminPageRevisionListResponse;
+      setRevisions((current) => [...current, ...payload.items]);
+      setRevisionCursor(payload.nextCursor);
+      setHasMoreRevisions(Boolean(payload.nextCursor));
+    } finally {
+      setIsLoadingRevisions(false);
+    }
+  }
 
   async function restoreRevision(revisionId: string) {
     if (!initialPage?.id) {
@@ -1060,7 +1098,8 @@ export function PageEditorClient({
           is restricted to super admins as a fallback option.
         </p>
         <p className="page-editor__field-help">
-          Editing mode: <strong>{isSimpleMode ? "Simple mode" : "Advanced mode"}</strong>
+          Editing mode:{" "}
+          <strong>{isSimpleMode ? "Simple mode" : "Advanced mode"}</strong>
         </p>
       </div>
 
@@ -1119,7 +1158,8 @@ export function PageEditorClient({
             <fieldset>
               <legend>Publishing schedule</legend>
               <p>
-                Current status: <strong>{workflowLabel(workflowStatus)}</strong> (
+                Current status: <strong>{workflowLabel(workflowStatus)}</strong>{" "}
+                (
                 {getPublicationStatus({
                   published: workflowStatus === "published",
                   publishAt: toIsoDateTimeOrNull(publishAt),
@@ -1481,6 +1521,15 @@ export function PageEditorClient({
                 </li>
               ))}
             </ul>
+            {hasMoreRevisions ? (
+              <button
+                type="button"
+                onClick={() => void loadMoreRevisions()}
+                disabled={isLoadingRevisions}
+              >
+                {isLoadingRevisions ? "Loading..." : "Load older revisions"}
+              </button>
+            ) : null}
           </fieldset>
         ) : null}
 
