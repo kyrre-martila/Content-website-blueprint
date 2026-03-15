@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { AdminNavigationItem } from "../../../../lib/admin/navigation";
+import { DestructiveConfirmModal } from "../components/DestructiveConfirmModal";
 
 type FormState = {
   label: string;
@@ -23,6 +24,7 @@ export function NavigationEditorClient({
   const [error, setError] = React.useState<string | null>(null);
   const [status, setStatus] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [pendingDeleteItem, setPendingDeleteItem] = React.useState<AdminNavigationItem | null>(null);
 
   const sortedItems = React.useMemo(
     () =>
@@ -142,7 +144,16 @@ export function NavigationEditorClient({
   }
 
   async function deleteItem(id: string) {
-    if (!window.confirm("Delete this navigation item?")) {
+    const item = items.find((entry) => entry.id === id);
+    if (!item) {
+      return;
+    }
+
+    setPendingDeleteItem(item);
+  }
+
+  async function confirmDeleteItem() {
+    if (!pendingDeleteItem) {
       return;
     }
 
@@ -150,7 +161,7 @@ export function NavigationEditorClient({
     setStatus(null);
 
     try {
-      const res = await fetch(`/api/admin/navigation-items/${id}`, {
+      const res = await fetch(`/api/admin/navigation-items/${pendingDeleteItem.id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -158,10 +169,11 @@ export function NavigationEditorClient({
         return;
       }
       await reloadItems();
-      if (editingId === id) {
+      if (editingId === pendingDeleteItem.id) {
         resetForm();
       }
       setStatus("Navigation item deleted.");
+      setPendingDeleteItem(null);
     } catch {
       setError("Network error while deleting navigation item.");
     }
@@ -313,6 +325,30 @@ export function NavigationEditorClient({
           <p className="admin-pages__empty">No navigation items yet.</p>
         )}
       </div>
+
+      <DestructiveConfirmModal
+        open={Boolean(pendingDeleteItem)}
+        title="Delete navigation item"
+        description="This permanently removes this link from navigation. Visitors may lose key paths until links are restored."
+        confirmLabel="Delete navigation item"
+        confirmText="DELETE"
+        details={
+          pendingDeleteItem
+            ? [
+                { label: "Label", value: pendingDeleteItem.label },
+                { label: "URL", value: pendingDeleteItem.url },
+                {
+                  label: "Hierarchy impact",
+                  value: pendingDeleteItem.parentId
+                    ? "This is a nested item. Check parent/child navigation after deletion."
+                    : "This is a top-level item and may affect primary navigation.",
+                },
+              ]
+            : []
+        }
+        onCancel={() => setPendingDeleteItem(null)}
+        onConfirm={() => void confirmDeleteItem()}
+      />
     </section>
   );
 }

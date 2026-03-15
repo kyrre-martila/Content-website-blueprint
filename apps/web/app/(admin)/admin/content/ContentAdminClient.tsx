@@ -991,6 +991,9 @@ function ContentItemEditor({
   );
   const [isLoadingRevisions, setIsLoadingRevisions] = React.useState(false);
   const [hasMoreRevisions, setHasMoreRevisions] = React.useState(false);
+  const [pendingRestoreRevision, setPendingRestoreRevision] =
+    React.useState<AdminContentItemRevision | null>(null);
+  const [isRestoringRevision, setIsRestoringRevision] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
@@ -1309,17 +1312,10 @@ function ContentItemEditor({
               {revision.revisionNote ?? "Snapshot"}
               <button
                 type="button"
-                onClick={() => {
-                  const confirmation = window.confirm(
-                    "Restore this revision? Current entry data will be replaced.",
-                  );
-                  if (!confirmation) {
-                    return;
-                  }
-                  void onRestoreRevision(revision.id);
-                }}
+                onClick={() => setPendingRestoreRevision(revision)}
+                disabled={isRestoringRevision}
               >
-                Restore
+                {isRestoringRevision ? "Restoring..." : "Restore"}
               </button>
             </li>
           ))}
@@ -1359,6 +1355,50 @@ function ContentItemEditor({
           Delete
         </button>
       ) : null}
+
+      <DestructiveConfirmModal
+        open={Boolean(pendingRestoreRevision)}
+        title="Restore content revision"
+        description="This replaces the current entry fields, metadata, and workflow state with a previous snapshot. This action cannot be undone."
+        confirmLabel="Restore revision"
+        details={
+          pendingRestoreRevision
+            ? [
+                { label: "Entry title", value: item.title },
+                {
+                  label: "Entry URL",
+                  value: `/${contentType.slug}/${item.slug}`,
+                },
+                {
+                  label: "Revision timestamp",
+                  value: new Date(
+                    pendingRestoreRevision.createdAt,
+                  ).toLocaleString(),
+                },
+                {
+                  label: "Revision note",
+                  value: pendingRestoreRevision.revisionNote ?? "Snapshot",
+                },
+              ]
+            : []
+        }
+        isProcessing={isRestoringRevision}
+        onCancel={() => setPendingRestoreRevision(null)}
+        onConfirm={() => {
+          if (!pendingRestoreRevision) {
+            return;
+          }
+
+          setIsRestoringRevision(true);
+          void onRestoreRevision(pendingRestoreRevision.id)
+            .finally(() => {
+              setIsRestoringRevision(false);
+            })
+            .then(() => {
+              setPendingRestoreRevision(null);
+            });
+        }}
+      />
     </form>
   );
 }
@@ -1430,6 +1470,9 @@ export function ContentAdminClient({
   const [pendingDeleteItem, setPendingDeleteItem] =
     React.useState<AdminContentItem | null>(null);
   const [isDeletingItem, setIsDeletingItem] = React.useState(false);
+  const [pendingDeleteContentType, setPendingDeleteContentType] =
+    React.useState<AdminContentType | null>(null);
+  const [isDeletingContentType, setIsDeletingContentType] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pages, setPages] = React.useState<AdminPageOption[]>([]);
   const [media, setMedia] = React.useState<AdminMediaOption[]>([]);
@@ -1623,20 +1666,19 @@ export function ContentAdminClient({
     setStatus("Content type saved.");
   }
 
-  async function deleteContentType(id: string) {
-    const confirmation = window.prompt(
-      "To permanently delete this content setup, type DELETE.",
-    );
-    if (confirmation !== "DELETE") {
-      setStatus("Delete cancelled. The content setup is unchanged.");
+  async function deleteContentType() {
+    if (!pendingDeleteContentType) {
       return;
     }
 
+    const { id } = pendingDeleteContentType;
     setError(null);
     setStatus(null);
+    setIsDeletingContentType(true);
     const res = await fetch(`/api/admin/content-types/${id}`, {
       method: "DELETE",
     });
+    setIsDeletingContentType(false);
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       setError(
@@ -1665,6 +1707,7 @@ export function ContentAdminClient({
       return next;
     });
     setSelectedTypeId((current) => (current === id ? "" : current));
+    setPendingDeleteContentType(null);
     setStatus("Content type deleted.");
   }
 
@@ -2040,7 +2083,7 @@ export function ContentAdminClient({
                 </button>
                 <button
                   type="button"
-                  onClick={() => void deleteContentType(type.id)}
+                  onClick={() => setPendingDeleteContentType(type)}
                 >
                   Delete content setup
                 </button>
@@ -2419,6 +2462,33 @@ export function ContentAdminClient({
           </form>
         </>
       )}
+
+      <DestructiveConfirmModal
+        open={Boolean(pendingDeleteContentType)}
+        title="Delete content setup"
+        description="This permanently deletes the content type definition and can orphan related editorial workflows. Existing entries must be removed first."
+        confirmLabel="Delete content setup"
+        confirmText="DELETE"
+        details={
+          pendingDeleteContentType
+            ? [
+                { label: "Content area", value: pendingDeleteContentType.name },
+                {
+                  label: "Archive URL",
+                  value: `/${pendingDeleteContentType.slug}`,
+                },
+                {
+                  label: "Impact",
+                  value:
+                    "Field schema, editor configuration, and archive routes for this content area will be removed.",
+                },
+              ]
+            : []
+        }
+        isProcessing={isDeletingContentType}
+        onCancel={() => setPendingDeleteContentType(null)}
+        onConfirm={() => void deleteContentType()}
+      />
 
       <DestructiveConfirmModal
         open={Boolean(pendingDeleteItem)}
