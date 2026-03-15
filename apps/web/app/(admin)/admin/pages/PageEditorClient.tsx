@@ -380,6 +380,7 @@ export function PageEditorClient({
   );
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isDuplicating, setIsDuplicating] = React.useState(false);
   const [revisions, setRevisions] = React.useState<AdminPageRevision[]>([]);
   const [isLoadingRevisions, setIsLoadingRevisions] = React.useState(false);
   const [isRestoringRevision, setIsRestoringRevision] = React.useState(false);
@@ -875,6 +876,50 @@ export function PageEditorClient({
       setError("Network error while saving page.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function duplicatePage() {
+    if (!initialPage) {
+      return;
+    }
+
+    const confirmation = window.confirm(
+      `Duplicate "${initialPage.title}"? A new draft copy will be created.`,
+    );
+    if (!confirmation) {
+      setStatus("Duplication cancelled. The page is unchanged.");
+      return;
+    }
+
+    setIsDuplicating(true);
+    setError(null);
+    setStatus(null);
+
+    try {
+      const res = await fetch(`/api/admin/pages/${initialPage.id}/duplicate`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(
+          describeApiError(
+            "We could not duplicate this page right now. Please try again.",
+            data,
+          ),
+        );
+        return;
+      }
+
+      const duplicatedPage = (await res.json()) as AdminPage;
+      setStatus("Draft copy created.");
+      router.push(`/admin/pages/${duplicatedPage.id}`);
+      router.refresh();
+    } catch {
+      setError("Network error while duplicating page.");
+    } finally {
+      setIsDuplicating(false);
     }
   }
 
@@ -1380,7 +1425,20 @@ export function PageEditorClient({
             </button>
           ))}
           {initialPage && (
-            <button type="button" onClick={deletePage} disabled={isDeleting}>
+            <button
+              type="button"
+              onClick={duplicatePage}
+              disabled={isDuplicating || isDeleting}
+            >
+              {isDuplicating ? "Duplicating..." : "Duplicate page"}
+            </button>
+          )}
+          {initialPage && (
+            <button
+              type="button"
+              onClick={deletePage}
+              disabled={isDeleting || isDuplicating}
+            >
               {isDeleting ? "Deleting..." : "Delete permanently"}
             </button>
           )}
