@@ -16,6 +16,7 @@ export default async function NewAdminPage() {
       canManageStructure={canEditSlug(me?.user?.role)}
       canEditSlug={canEditSlug(me?.user?.role)}
       canEditRawJson={canAccessSchema(me?.user?.role)}
+      canDeletePage={canEditSlug(me?.user?.role)}
       userRole={
         hasMinimumRole(me?.user?.role, "super_admin")
           ? "superadmin"

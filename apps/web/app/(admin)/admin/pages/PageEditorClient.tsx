@@ -4,6 +4,7 @@ import Link from "next/link";
 import { HtmlRichTextEditor } from "../components/HtmlRichTextEditor";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { DestructiveConfirmModal } from "../components/DestructiveConfirmModal";
 import type {
   AdminPage,
   AdminPageBlockType,
@@ -372,12 +373,14 @@ export function PageEditorClient({
   canManageStructure,
   canEditRawJson,
   canEditSlug,
+  canDeletePage,
   userRole,
 }: {
   initialPage: AdminPage | null;
   canManageStructure: boolean;
   canEditRawJson: boolean;
   canEditSlug: boolean;
+  canDeletePage: boolean;
   userRole: "editor" | "admin" | "superadmin";
 }) {
   const router = useRouter();
@@ -415,6 +418,7 @@ export function PageEditorClient({
   );
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const [isDuplicating, setIsDuplicating] = React.useState(false);
   const [revisions, setRevisions] = React.useState<AdminPageRevision[]>([]);
   const [revisionCursor, setRevisionCursor] = React.useState<string | null>(
@@ -1034,15 +1038,7 @@ export function PageEditorClient({
   }
 
   async function deletePage() {
-    if (!initialPage) {
-      return;
-    }
-
-    const confirmation = window.prompt(
-      `To permanently delete \"${initialPage.title}\", type DELETE.`,
-    );
-    if (confirmation !== "DELETE") {
-      setStatus("Delete cancelled. The page is unchanged.");
+    if (!initialPage || !canDeletePage) {
       return;
     }
 
@@ -1575,10 +1571,10 @@ export function PageEditorClient({
               {isDuplicating ? "Duplicating..." : "Duplicate page"}
             </button>
           )}
-          {initialPage && (
+          {initialPage && canDeletePage && (
             <button
               type="button"
-              onClick={deletePage}
+              onClick={() => setShowDeleteModal(true)}
               disabled={isDeleting || isDuplicating}
             >
               {isDeleting ? "Deleting..." : "Delete permanently"}
@@ -1586,6 +1582,33 @@ export function PageEditorClient({
           )}
         </div>
       </form>
+      <DestructiveConfirmModal
+        open={showDeleteModal}
+        title="Delete page permanently"
+        description="This removes the page and its content blocks. Visitors may hit a 404 unless a redirect exists."
+        confirmLabel="Delete page"
+        confirmText="DELETE"
+        details={
+          initialPage
+            ? [
+                { label: "Page title", value: initialPage.title },
+                { label: "Page URL", value: `/page/${initialPage.slug}` },
+                {
+                  label: "Publication impact",
+                  value: initialPage.published
+                    ? "This page is currently published and publicly reachable."
+                    : "This page is not currently published.",
+                },
+              ]
+            : []
+        }
+        isProcessing={isDeleting}
+        onCancel={() => setShowDeleteModal(false)}
+        onConfirm={() => {
+          void deletePage();
+          setShowDeleteModal(false);
+        }}
+      />
     </section>
   );
 }

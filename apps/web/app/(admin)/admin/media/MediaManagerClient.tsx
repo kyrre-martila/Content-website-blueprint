@@ -2,15 +2,18 @@
 
 import * as React from "react";
 import type { AdminMedia } from "../../../../lib/admin/media";
+import { DestructiveConfirmModal } from "../components/DestructiveConfirmModal";
 
 export function MediaManagerClient({
   initialMedia,
   pageSize,
   initialHasNext,
+  canDeleteMedia,
 }: {
   initialMedia: AdminMedia[];
   pageSize: number;
   initialHasNext: boolean;
+  canDeleteMedia: boolean;
 }) {
   const [media, setMedia] = React.useState(initialMedia);
   const [offset, setOffset] = React.useState(0);
@@ -18,6 +21,10 @@ export function MediaManagerClient({
   const [hasNext, setHasNext] = React.useState(initialHasNext);
   const [uploading, setUploading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = React.useState<AdminMedia | null>(
+    null,
+  );
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   async function loadPage(nextOffset: number) {
     setLoadingPage(true);
@@ -93,22 +100,23 @@ export function MediaManagerClient({
     }
   }
 
-  async function onDelete(id: string) {
-    const confirmation = window.prompt(
-      "To permanently delete this media item, type DELETE.",
-    );
-    if (confirmation !== "DELETE") {
-      setError("Delete cancelled. The media item is unchanged.");
+  async function confirmDeleteMedia() {
+    if (!pendingDelete) {
       return;
     }
 
     setError(null);
-    const res = await fetch(`/api/admin/media/${id}`, { method: "DELETE" });
+    setIsDeleting(true);
+    const res = await fetch(`/api/admin/media/${pendingDelete.id}`, {
+      method: "DELETE",
+    });
+    setIsDeleting(false);
     if (!res.ok) {
       setError("Unable to delete media.");
       return;
     }
 
+    setPendingDelete(null);
     await loadPage(offset);
   }
 
@@ -190,9 +198,13 @@ export function MediaManagerClient({
                 }}
               />
             </label>
-            <button type="button" onClick={() => void onDelete(item.id)}>
-              Delete
-            </button>
+            {canDeleteMedia ? (
+              <button type="button" onClick={() => setPendingDelete(item)}>
+                Delete
+              </button>
+            ) : (
+              <small>Only admins can delete media.</small>
+            )}
           </article>
         ))}
       </div>
@@ -213,6 +225,31 @@ export function MediaManagerClient({
           Next page
         </button>
       </div>
+
+      <DestructiveConfirmModal
+        open={Boolean(pendingDelete)}
+        title="Delete media item"
+        description="This permanently removes the media file from the library. Any pages or entries using this URL may show broken images."
+        confirmLabel="Delete media"
+        confirmText="DELETE"
+        details={
+          pendingDelete
+            ? [
+                { label: "Alt text", value: pendingDelete.alt || "(none)" },
+                { label: "Media URL", value: pendingDelete.url },
+                {
+                  label: "Publication impact",
+                  value: pendingDelete.isUsed
+                    ? "This media is currently used in published content."
+                    : "No active usage detected.",
+                },
+              ]
+            : []
+        }
+        isProcessing={isDeleting}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void confirmDeleteMedia()}
+      />
     </section>
   );
 }

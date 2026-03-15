@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { getMe } from "../../../../lib/me";
 import { hasMinimumRole } from "../../../../lib/rbac";
+import { canManageTaxonomies } from "../../../../lib/roles";
 import { MediaManagerClient } from "./MediaManagerClient";
 import { listAdminMedia } from "../../../../lib/admin/media";
 
@@ -19,6 +20,7 @@ export default async function AdminMediaPage() {
       initialMedia={media.slice(0, pageSize)}
       pageSize={pageSize}
       initialHasNext={media.length > pageSize}
+      canDeleteMedia={canManageTaxonomies(me?.user?.role)}
     />
   );
 }

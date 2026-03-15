@@ -7,6 +7,7 @@ import type {
   AdminContentType,
 } from "../../../../lib/admin/content";
 import { HtmlRichTextEditor } from "../components/HtmlRichTextEditor";
+import { DestructiveConfirmModal } from "../components/DestructiveConfirmModal";
 
 type WorkflowStatus =
   | "draft"
@@ -843,6 +844,7 @@ function ContentItemEditor({
   onSave,
   onDelete,
   onDuplicate,
+  canDeleteItems,
   getReferenceOptions,
   canUseMediaLibrary,
   canEditSlug,
@@ -869,6 +871,7 @@ function ContentItemEditor({
   }) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onDuplicate: (id: string) => Promise<void>;
+  canDeleteItems: boolean;
   getReferenceOptions: (
     field: AdminContentFieldDefinition,
   ) => ReferenceOption[];
@@ -1273,9 +1276,11 @@ function ContentItemEditor({
       <button type="button" onClick={() => void onDuplicate(item.id)}>
         Duplicate item
       </button>
-      <button type="button" onClick={() => void onDelete(item.id)}>
-        Delete
-      </button>
+      {canDeleteItems ? (
+        <button type="button" onClick={() => void onDelete(item.id)}>
+          Delete
+        </button>
+      ) : null}
     </form>
   );
 }
@@ -1344,6 +1349,9 @@ export function ContentAdminClient({
     fields: [],
   });
   const [status, setStatus] = React.useState<string | null>(null);
+  const [pendingDeleteItem, setPendingDeleteItem] =
+    React.useState<AdminContentItem | null>(null);
+  const [isDeletingItem, setIsDeletingItem] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pages, setPages] = React.useState<AdminPageOption[]>([]);
   const [media, setMedia] = React.useState<AdminMediaOption[]>([]);
@@ -1774,21 +1782,31 @@ export function ContentAdminClient({
   }
 
   async function deleteContentItem(id: string) {
-    if (!selectedType) return;
+    if (!selectedType || !canEditSlug) return;
 
-    const confirmation = window.prompt(
-      "To permanently delete this content entry, type DELETE.",
-    );
-    if (confirmation !== "DELETE") {
-      setStatus("Delete cancelled. The entry is unchanged.");
+    const item = selectedItems.find((entry) => entry.id === id);
+    if (!item) {
+      return;
+    }
+
+    setPendingDeleteItem(item);
+  }
+
+  async function confirmDeleteContentItem() {
+    if (!selectedType || !pendingDeleteItem) {
       return;
     }
 
     setError(null);
     setStatus(null);
-    const res = await fetch(`/api/admin/content-items/${id}`, {
-      method: "DELETE",
-    });
+    setIsDeletingItem(true);
+    const res = await fetch(
+      `/api/admin/content-items/${pendingDeleteItem.id}`,
+      {
+        method: "DELETE",
+      },
+    );
+    setIsDeletingItem(false);
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       setError(
@@ -1801,6 +1819,7 @@ export function ContentAdminClient({
     }
 
     await refreshItems(selectedType.id);
+    setPendingDeleteItem(null);
     setStatus("Entry deleted.");
   }
 
@@ -2110,6 +2129,7 @@ export function ContentAdminClient({
               onSave={(payload) => saveContentItem(payload)}
               onDelete={deleteContentItem}
               onDuplicate={duplicateContentItem}
+              canDeleteItems={canEditSlug}
               getReferenceOptions={getReferenceOptions}
               canUseMediaLibrary={canUseMediaLibrary}
               canEditSlug={canEditSlug}
@@ -2334,6 +2354,36 @@ export function ContentAdminClient({
           </form>
         </>
       )}
+
+      <DestructiveConfirmModal
+        open={Boolean(pendingDeleteItem)}
+        title="Delete content entry"
+        description="This permanently removes the content entry and its revision history."
+        confirmLabel="Delete entry"
+        confirmText="DELETE"
+        details={
+          pendingDeleteItem
+            ? [
+                { label: "Entry title", value: pendingDeleteItem.title },
+                {
+                  label: "Entry URL",
+                  value: selectedType
+                    ? `/${selectedType.slug}/${pendingDeleteItem.slug}`
+                    : pendingDeleteItem.slug,
+                },
+                {
+                  label: "Publication impact",
+                  value: pendingDeleteItem.published
+                    ? "This entry is currently published and publicly reachable."
+                    : "This entry is not currently published.",
+                },
+              ]
+            : []
+        }
+        isProcessing={isDeletingItem}
+        onCancel={() => setPendingDeleteItem(null)}
+        onConfirm={() => void confirmDeleteContentItem()}
+      />
     </section>
   );
 }

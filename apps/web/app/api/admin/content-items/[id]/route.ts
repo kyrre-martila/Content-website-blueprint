@@ -16,7 +16,7 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_: Request, { params }: Params) {
-  const denied = await requireMinimumAdminRole();
+  const denied = await requireMinimumAdminRole("admin");
   if (denied) return denied;
 
   const { id } = await params;
