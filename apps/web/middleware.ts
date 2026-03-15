@@ -14,16 +14,18 @@ const mediaAllowlistOrigins = parseOriginAllowlist(
   process.env.NEXT_PUBLIC_CSP_MEDIA_ORIGINS,
 );
 
-const imgSrcOrigins = ["'self'", "data:", apiOrigin, ...mediaAllowlistOrigins];
+const imgSrcOrigins = ["'self'", "data:", "blob:", apiOrigin, ...mediaAllowlistOrigins];
 
 const csp = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
+  "form-action 'self'",
   `img-src ${imgSrcOrigins.join(" ")}`,
-  "script-src 'self'",
-  "style-src 'self'",
+  "font-src 'self' data:",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
   `connect-src 'self' ${apiOrigin}`,
 ].join("; ");
 

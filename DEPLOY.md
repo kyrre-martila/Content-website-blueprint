@@ -200,15 +200,33 @@ CDN/reverse-proxy expectations:
 - Allow stale-while-revalidate behavior at the edge where supported.
 - Ensure `/uploads` is backed by durable storage (bind mount/PVC/network disk) and included in backup/restore procedures.
 
+
+## Revision pruning operations
+
+Keep revision tables bounded in production by running the prune script on a schedule.
+
+Recommended baseline:
+
+- **Frequency:** daily (minimum weekly for low-volume environments).
+- **Retention policy:** keep the latest `100` revisions per page and per content item (`REVISION_RETENTION_COUNT`, defaults to `100`).
+- **Command:**
+
+```bash
+REVISION_RETENTION_COUNT=100 pnpm revisions:prune
+```
+
+Operational note: run this as a cron/CronJob with logs captured; the script outputs JSON counts of deleted rows for observability.
+
 ## Scheduling behavior in production
 
-- This blueprint does **not** include an automated scheduler/cron worker for publish/unpublish transitions.
-- `publishAt` and `unpublishAt` are enforced at request time by the public content API (pages, content items, sitemap).
-- Operational implication: state transitions happen when traffic requests affected resources; there is no background state mutation minute-by-minute.
-- Cache/revalidation implication: the web tier requests public content with `next: { revalidate: 60 }`, so visibility flips can lag by up to roughly one minute.
-- If stricter timing is required, add one or more of:
-  - an explicit scheduler worker,
-  - targeted cache invalidation/revalidation hooks,
+- `publishAt` and `unpublishAt` are enforced at **request time** by the public content API (pages, content items, sitemap).
+- There is **no mandatory scheduler worker** for correctness in the default blueprint.
+- Operational implication: transitions are applied when traffic requests affected resources; there is no built-in minute-by-minute background mutation process.
+- Cache/revalidation implication: the web tier requests public content with `next: { revalidate: 60 }`, so visibility flips can lag by up to roughly one minute after the scheduled timestamp.
+- Optional hardening for tighter publish windows:
+  - add an explicit scheduler/cron worker,
+  - trigger targeted cache invalidation/revalidation hooks,
+  - add a lightweight cache-warm step for high-traffic landing pages,
   - or lower TTLs for critical endpoints.
 
 ## Production readiness checklist
@@ -232,12 +250,15 @@ CDN/reverse-proxy expectations:
 
 ## CSP and external media guidance
 
-The web middleware sets a strict CSP and keeps `img-src` limited by default to:
+The web frontend applies a practical baseline CSP for production readiness:
 
-- `'self'`
-- `data:`
-- `NEXT_PUBLIC_API_URL` origin
+- default-deny baseline (`default-src 'self'`)
+- no plugin/object embedding (`object-src 'none'`)
+- no framing (`frame-ancestors 'none'`)
+- API + same-origin fetches allowed via `connect-src`
+- self-hosted/admin-compatible script + style directives (`'unsafe-inline'` retained intentionally to avoid breaking current Next/admin runtime behavior)
+- image loading from `'self'`, `data:`, `blob:`, API origin, and optional allowlisted media origins
 
-If editors or templates embed images from a CDN/object-storage domain, set `NEXT_PUBLIC_CSP_MEDIA_ORIGINS` with a comma-separated origin allowlist (for example `https://cdn.example.com,https://images.example.net`).
+If editors or templates embed images from CDN/object-storage domains, set `NEXT_PUBLIC_CSP_MEDIA_ORIGINS` with a comma-separated origin allowlist (for example `https://cdn.example.com,https://images.example.net`).
 
-Avoid wildcard image origins in production; prefer explicit host allowlists and review them during launch checklists.
+Avoid wildcard origins in production; prefer explicit host allowlists and tighten script/style directives further once nonce/hash-based CSP is introduced.
