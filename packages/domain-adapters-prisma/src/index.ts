@@ -12,5 +12,6 @@ export {
   ContentItemTermsPrismaRepository,
   NavigationItemsPrismaRepository,
   SiteSettingsPrismaRepository,
+  SiteEnvironmentStatusPrismaRepository,
   MediaPrismaRepository,
 } from "./content/content.prisma.repositories.js";

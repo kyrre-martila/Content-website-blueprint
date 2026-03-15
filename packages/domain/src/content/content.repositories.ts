@@ -7,6 +7,10 @@ import type {
   Page,
   PageBlock,
   SiteSetting,
+  SiteEnvironmentStatus,
+  SiteEnvironmentName,
+  SiteEnvironmentState,
+  SiteEnvironmentLockStatus,
   SlugLookupResult,
   Taxonomy,
   Term,
@@ -205,4 +209,22 @@ export interface ContentItemTermsRepository {
   findManyByContentItemId(contentItemId: string): Promise<ContentItemTerm[]>;
   assign(contentItemId: string, termIds: string[]): Promise<ContentItemTerm[]>;
   remove(contentItemId: string, termId: string): Promise<void>;
+}
+
+
+export type UpdateSiteEnvironmentStatusInput = {
+  state?: SiteEnvironmentState;
+  lastSyncedAt?: Date | null;
+  lastPushedAt?: Date | null;
+  lastResetAt?: Date | null;
+  lockStatus?: SiteEnvironmentLockStatus;
+  lastActorUserId?: string | null;
+};
+
+export interface SiteEnvironmentStatusRepository {
+  get(environment: SiteEnvironmentName): Promise<SiteEnvironmentStatus | null>;
+  list(): Promise<SiteEnvironmentStatus[]>;
+  upsert(status: Omit<SiteEnvironmentStatus, "createdAt" | "updatedAt">): Promise<SiteEnvironmentStatus>;
+  update(environment: SiteEnvironmentName, data: UpdateSiteEnvironmentStatusInput): Promise<SiteEnvironmentStatus>;
+  delete(environment: SiteEnvironmentName): Promise<void>;
 }

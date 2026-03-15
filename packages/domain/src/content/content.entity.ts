@@ -180,6 +180,28 @@ export type NavigationItem = {
   parentId: string | null;
 };
 
+
+export type SiteEnvironmentName = "live" | "staging";
+
+export type SiteEnvironmentState = "active" | "stale" | "deleted";
+
+export type SiteEnvironmentLockStatus =
+  | "idle"
+  | "syncing"
+  | "pushing"
+  | "deleting";
+
+export type SiteEnvironmentStatus = {
+  environment: SiteEnvironmentName;
+  state: SiteEnvironmentState;
+  lastSyncedAt: Date | null;
+  lastPushedAt: Date | null;
+  lastResetAt: Date | null;
+  lockStatus: SiteEnvironmentLockStatus;
+  lastActorUserId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 export type SiteSetting = {
   key: string;
   value: string;

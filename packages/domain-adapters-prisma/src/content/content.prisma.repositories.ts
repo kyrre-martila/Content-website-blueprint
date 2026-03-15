@@ -30,6 +30,12 @@ import type {
   PagesRepository,
   SiteSetting,
   SiteSettingsRepository,
+  SiteEnvironmentName,
+  SiteEnvironmentState,
+  SiteEnvironmentLockStatus,
+  SiteEnvironmentStatus,
+  SiteEnvironmentStatusRepository,
+  UpdateSiteEnvironmentStatusInput,
 } from "@org/domain";
 import { getPrisma } from "../prisma.client.js";
 
@@ -1954,6 +1960,31 @@ export class NavigationItemsPrismaRepository
   }
 }
 
+
+function mapSiteEnvironmentStatus(status: {
+  environment: string;
+  state: string;
+  lastSyncedAt: Date | null;
+  lastPushedAt: Date | null;
+  lastResetAt: Date | null;
+  lockStatus: string;
+  lastActorUserId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): SiteEnvironmentStatus {
+  return {
+    environment: status.environment as SiteEnvironmentName,
+    state: status.state as SiteEnvironmentState,
+    lastSyncedAt: status.lastSyncedAt,
+    lastPushedAt: status.lastPushedAt,
+    lastResetAt: status.lastResetAt,
+    lockStatus: status.lockStatus as SiteEnvironmentLockStatus,
+    lastActorUserId: status.lastActorUserId,
+    createdAt: status.createdAt,
+    updatedAt: status.updatedAt,
+  };
+}
+
 export class SiteSettingsPrismaRepository implements SiteSettingsRepository {
   private readonly prisma = getPrisma();
 
@@ -1978,6 +2009,68 @@ export class SiteSettingsPrismaRepository implements SiteSettingsRepository {
 
   async delete(key: string): Promise<void> {
     await this.prisma.siteSetting.delete({ where: { key } });
+  }
+}
+
+
+
+export class SiteEnvironmentStatusPrismaRepository
+  implements SiteEnvironmentStatusRepository
+{
+  private readonly prisma = getPrisma();
+
+  async get(
+    environment: SiteEnvironmentName,
+  ): Promise<SiteEnvironmentStatus | null> {
+    const status = await this.prisma.siteEnvironmentStatus.findUnique({
+      where: { environment },
+    });
+    return status ? mapSiteEnvironmentStatus(status) : null;
+  }
+
+  async list(): Promise<SiteEnvironmentStatus[]> {
+    const statuses = await this.prisma.siteEnvironmentStatus.findMany({
+      orderBy: { environment: "asc" },
+    });
+
+    return statuses.map(mapSiteEnvironmentStatus);
+  }
+
+  async upsert(
+    status: Omit<SiteEnvironmentStatus, "createdAt" | "updatedAt">,
+  ): Promise<SiteEnvironmentStatus> {
+    const record = await this.prisma.siteEnvironmentStatus.upsert({
+      where: { environment: status.environment },
+      create: status,
+      update: {
+        state: status.state,
+        lastSyncedAt: status.lastSyncedAt,
+        lastPushedAt: status.lastPushedAt,
+        lastResetAt: status.lastResetAt,
+        lockStatus: status.lockStatus,
+        lastActorUserId: status.lastActorUserId,
+      },
+    });
+
+    return mapSiteEnvironmentStatus(record);
+  }
+
+  async update(
+    environment: SiteEnvironmentName,
+    data: UpdateSiteEnvironmentStatusInput,
+  ): Promise<SiteEnvironmentStatus> {
+    const record = await this.prisma.siteEnvironmentStatus.update({
+      where: { environment },
+      data,
+    });
+
+    return mapSiteEnvironmentStatus(record);
+  }
+
+  async delete(environment: SiteEnvironmentName): Promise<void> {
+    await this.prisma.siteEnvironmentStatus.delete({
+      where: { environment },
+    });
   }
 }
 
