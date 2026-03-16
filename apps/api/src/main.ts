@@ -34,6 +34,10 @@ import type { Logger } from "pino";
 import { startOtel, shutdownOtel } from "../otel";
 import { PrismaService } from "./prisma/prisma.service";
 import { API_PREFIX } from "./config/api-prefix";
+import {
+  createOpenApiDocument,
+  writeCanonicalOpenApiDocument,
+} from "./openapi/openapi-document";
 
 function configureCors(app: INestApplication, allowedOrigins: string[]) {
   const allowedMethods = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
@@ -77,24 +81,11 @@ function configureCors(app: INestApplication, allowedOrigins: string[]) {
   });
 }
 
-
 async function emitOpenApiDocument(app: INestApplication) {
-  const { SwaggerModule, DocumentBuilder } = await import("@nestjs/swagger");
-  const config = new DocumentBuilder()
-    .setTitle("Blueprint API")
-    .setVersion("1.0.0")
-    .addServer(`/api/v1`)
-    .addCookieAuth("access", { type: "apiKey", in: "cookie" })
-    .addBearerAuth()
-    .build();
-  const doc = SwaggerModule.createDocument(app, config, {
-    deepScanRoutes: true,
-  });
-  const { writeFileSync, mkdirSync } = await import("node:fs");
-  const outputDir = "packages/contracts";
-  mkdirSync(outputDir, { recursive: true });
-  writeFileSync(`${outputDir}/openapi.v1.json`, JSON.stringify(doc, null, 2));
-  return doc;
+  const outputPath = "packages/contracts/openapi.v1.json";
+  const document = createOpenApiDocument(app);
+  writeCanonicalOpenApiDocument(document, outputPath);
+  return document;
 }
 
 async function bootstrap() {
@@ -221,7 +212,10 @@ async function bootstrap() {
       immutable: true,
       setHeaders: (res) => {
         res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
-        res.setHeader("Surrogate-Control", "public, max-age=2592000, stale-while-revalidate=60");
+        res.setHeader(
+          "Surrogate-Control",
+          "public, max-age=2592000, stale-while-revalidate=60",
+        );
       },
     }),
   );
