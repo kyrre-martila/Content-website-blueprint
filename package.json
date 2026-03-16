@@ -37,7 +37,8 @@
     "db:setup": "pnpm db:migrate && pnpm db:seed",
     "seed": "pnpm db:seed",
     "generate:openapi": "pnpm --filter api generate:openapi",
-    "revisions:prune": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/revisions-prune.ts"
+    "revisions:prune": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/revisions-prune.ts",
+    "check:openapi:drift": "pnpm generate:openapi && node packages/contracts/scripts/validate-openapi.mjs && git diff --exit-code -- packages/contracts/openapi.v1.json"
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",

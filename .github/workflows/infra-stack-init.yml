@@ -52,13 +52,13 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10.5.2
 
       - name: Install deps
         run: pnpm install
 
       - name: Prisma generate
-        run: pnpm --filter @blueprint/db generate
+        run: pnpm db:generate
 
       - name: Emit OpenAPI
         run: pnpm api:openapi
@@ -76,13 +76,13 @@ jobs:
           name: openapi-and-sdks
           if-no-files-found: error
           path: |
-            apps/api/openapi/openapi.json
-            packages/contracts/dist/openapi.json
+            packages/contracts/openapi.v1.json
+            packages/contracts/dist/openapi.v1.json
             packages/sdk-ts/**
 
       - name: Job summary
         run: |
           echo "### ✅ Stack init OK" >> $GITHUB_STEP_SUMMARY
-          echo "- OpenAPI: apps/api/openapi/openapi.json" >> $GITHUB_STEP_SUMMARY
-          echo "- Synced: packages/contracts/dist/openapi.json" >> $GITHUB_STEP_SUMMARY
+          echo "- OpenAPI: packages/contracts/openapi.v1.json" >> $GITHUB_STEP_SUMMARY
+          echo "- Synced: packages/contracts/dist/openapi.v1.json" >> $GITHUB_STEP_SUMMARY
           echo "- SDKs: packages/sdk-ts (lastet som artifact)" >> $GITHUB_STEP_SUMMARY

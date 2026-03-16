@@ -61,14 +61,8 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      - name: Generate OpenAPI
-        run: pnpm generate:openapi
-
-      - name: Validate OpenAPI contract invariants
-        run: node packages/contracts/scripts/validate-openapi.mjs
-
-      - name: Verify OpenAPI is up to date
-        run: git diff --exit-code -- packages/contracts/openapi.v1.json
+      - name: Verify OpenAPI generation + drift
+        run: pnpm check:openapi:drift
 
   lint:
     name: Lint (ESLint)
