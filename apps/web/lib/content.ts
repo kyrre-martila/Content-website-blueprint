@@ -309,6 +309,7 @@ export type SiteConfiguration = {
 };
 
 const DEFAULT_ARCHIVE_PAGE_SIZE = 100;
+const PUBLIC_CONTENT_REVALIDATE_SECONDS = 60;
 const DEFAULT_FEATURED_CONTENT_TYPE_SLUG =
   process.env.NEXT_PUBLIC_FEATURED_CONTENT_TYPE_SLUG?.trim() || "";
 
@@ -343,7 +344,9 @@ async function fetchContent<T>(path: string): Promise<T | null> {
   try {
     const response = await fetch(resolveApiUrl(path), {
       method: "GET",
-      next: { revalidate: 60 },
+      // Keep public app-router data fetches ISR-friendly so production
+      // prerender/builds do not fail with Next.js dynamic server usage errors.
+      next: { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS },
     });
 
     if (response.status === 404) {
